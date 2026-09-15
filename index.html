@@ -93,8 +93,17 @@ function mover(mes,passo){
   return d.getFullYear()+"-"+pad(d.getMonth()+1);
 }
 
+/* O atalho na tela inicial abre sem o "?m=", porque o Chrome usa o start_url do
+   manifesto. Por isso o código do motorista fica guardado no próprio aparelho:
+   quem abriu pelo link pessoal continua entrando como ele. */
+function tokenDoAparelho(){
+  const naUrl = new URLSearchParams(location.search).get("m");
+  if(naUrl){ try { localStorage.setItem("cf_motorista", naUrl); } catch(e){} return naUrl; }
+  try { return localStorage.getItem("cf_motorista") || null; } catch(e){ return null; }
+}
+
 const E = {
-  token: new URLSearchParams(location.search).get("m"),
+  token: tokenDoAparelho(),
   mes: hojeISO().slice(0,7),
   carregando: true,
   ocupado: false,
@@ -168,7 +177,7 @@ function pintar(){
   if(pendentes) html += '<div class="aviso erro">'+pendentes+(pendentes===1?" registro aguardando":" registros aguardando")+' envio. Abra o app com internet para subir.</div>';
 
   if(E.carregando) html += '<p style="color:#7F9AAC">Carregando…</p>';
-  else if(E.token) html += E.dados ? telaMotorista() : "";
+  else if(E.token) html += E.dados ? telaMotorista() : telaSemAcesso();
   else if(E.liberado) html += telaGestor();
   else html += telaPin();
 
@@ -216,8 +225,16 @@ function telaMotorista(){
 
   h += listar(vs, {cancelar:"cancelar"});
   h += '<p style="font-size:12px;color:var(--apagado);margin-top:16px;line-height:1.5">'+
-       'Você cancela o que lançou hoje. Registro de outros dias, só o gestor cancela.</p>';
+       'Você cancela o que lançou hoje. Registro de outros dias, só o gestor cancela.</p>'+
+       '<p style="margin-top:20px"><button class="link" data-acao="sair">não sou '+esc(E.dados.nome)+'</button></p>';
   return h;
+}
+
+function telaSemAcesso(){
+  return '<p style="font-size:15px;color:var(--fraco);line-height:1.6">'+
+    'Este aparelho está com um acesso de motorista que não vale mais. Abra de novo o link que o gestor mandou, '+
+    'ou saia para entrar como gestor.</p>'+
+    '<p style="margin-top:16px"><button class="acao" data-acao="sair">Sair deste acesso</button></p>';
 }
 
 function telaPin(){
@@ -348,6 +365,12 @@ const ACOES = {
   async cancelarG(b){
     if(!confirm("Cancelar esta viagem?")) return;
     await remover({acao:"cancelar_g", pin:E.pin, id:b.dataset.id});
+  },
+
+  sair(){
+    if(!confirm("Sair deste acesso neste celular?")) return;
+    try { localStorage.removeItem("cf_motorista"); } catch(e){}
+    location.href = location.origin + location.pathname;
   },
 
   criarPin(){
