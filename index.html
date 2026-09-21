@@ -67,7 +67,7 @@
 const API = "https://script.google.com/macros/s/AKfycbyb3mIEaspqZPGhbWofnaqfZ7YwMV9URH0usuFylEIY7AFe8BKq2jlzzfMqZDyrpM4M/exec";
 /* ————————————————————————————————————————————————————————————————— */
 
-const VERSAO = "3.0";
+const VERSAO = "3.1";
 
 const TIPOS = {
   ida:   {sigla:"IDA",   rotulo:"Levar equipe",  sub:"casa → empresa", cor:"var(--ida)"},
@@ -124,15 +124,16 @@ const espera = ms => new Promise(r => setTimeout(r, ms));
 
 /* O Apps Script às vezes demora para "acordar" ou devolve erro passageiro.
    Em vez de desistir na primeira falha, tentamos três vezes com pausa. */
-async function chamar(params, tentativas){
+async function chamar(params, tentativas, aoTentar){
   tentativas = tentativas || 3;
   const u = new URL(API);
   Object.keys(params).forEach(k => { if(params[k]!=null && params[k]!=="") u.searchParams.set(k, params[k]); });
   u.searchParams.set("_", Date.now());  // evita resposta velha em cache
   let ultimo;
   for(let i = 0; i < tentativas; i++){
+    if(aoTentar) aoTentar(i + 1, tentativas);
     const ctrl = new AbortController();
-    const relogio = setTimeout(() => ctrl.abort(), 25000);
+    const relogio = setTimeout(() => ctrl.abort(), 15000);
     try{
       const r = await fetch(u.toString(), {method:"GET", redirect:"follow", cache:"no-store", signal:ctrl.signal});
       const texto = await r.text();
@@ -151,15 +152,26 @@ async function chamar(params, tentativas){
 const fila = () => { try { return JSON.parse(localStorage.getItem("cf_fila")||"[]"); } catch(e){ return []; } };
 const setFila = f => localStorage.setItem("cf_fila", JSON.stringify(f));
 
+/* Reenvia o que ficou guardado sem internet. Roda em segundo plano, depois
+   que a tela já carregou, e nunca trava a abertura do app.
+   Se o servidor RECUSAR um item (link inválido, dado incompleto), ele sai
+   da fila — insistir não vai mudar a resposta. Só fica o que falhou por rede. */
 async function esvaziarFila(){
   const f = fila();
   if(!f.length) return false;
-  const restantes = [];
+  const restantes = [], recusados = [];
   for(const p of f){
-    try { const r = await chamar(p); if(!r.ok) restantes.push(p); }
-    catch(e){ restantes.push(p); }
+    try {
+      const r = await chamar(p, 1);
+      if(!r.ok) recusados.push(r.erro || "recusado");
+    } catch(e){ restantes.push(p); }
   }
   setFila(restantes);
+  if(recusados.length){
+    E.aviso = recusados.length + (recusados.length === 1 ? " registro pendente foi recusado" : " registros pendentes foram recusados") +
+              " pelo servidor: " + recusados[0];
+    E.avisoBom = false;
+  }
   return restantes.length < f.length;
 }
 
@@ -174,16 +186,17 @@ function lerCache(){
 }
 
 /* ————— carregamento ————— */
+function mostrarTentativa(n, total){ E.tentativa = n; E.totalTentativas = total; if(E.carregando) pintar(); }
+
 async function carregar(){
-  E.carregando = true; E.podeRepetir = false; pintar();
+  E.carregando = true; E.podeRepetir = false; E.tentativa = 1; pintar();
   try{
-    await esvaziarFila();
     if(E.token){
-      const r = await chamar({acao:"motorista", t:E.token, mes:E.mes});
+      const r = await chamar({acao:"motorista", t:E.token, mes:E.mes}, 3, mostrarTentativa);
       if(r.ok){ E.dados = r; guardarCache(r); }
       else { E.aviso = r.erro; E.avisoBom = false; }
     } else if(E.liberado || E.pin){
-      const r = await chamar({acao:"gestor", pin:E.pin, mes:E.mes});
+      const r = await chamar({acao:"gestor", pin:E.pin, mes:E.mes}, 3, mostrarTentativa);
       if(r.semPin){ E.semPin = true; E.liberado = false; }
       else if(r.ok){ E.dados = r; E.liberado = true; guardarCache(r); localStorage.setItem("cf_pin", E.pin); }
       else { E.liberado = false; E.aviso = r.erro; E.avisoBom = false; }
@@ -201,6 +214,14 @@ async function carregar(){
     E.podeRepetir = true;
   }
   E.carregando = false; E.ocupado = false; pintar();
+
+  if(fila().length && !E.esvaziando){
+    E.esvaziando = true;
+    esvaziarFila().then(enviou => {
+      E.esvaziando = false;
+      if(enviou) carregar(); else pintar();
+    });
+  }
 }
 
 /* ————— telas ————— */
@@ -215,7 +236,8 @@ function pintar(){
   const pendentes = fila().length;
   if(pendentes) html += '<div class="aviso erro">'+pendentes+(pendentes===1?" registro aguardando":" registros aguardando")+' envio. Abra o app com internet para subir.</div>';
 
-  if(E.carregando) html += '<p style="color:#7F9AAC">Carregando…</p>';
+  if(E.carregando) html += '<p style="color:#7F9AAC">Conectando à planilha…' +
+    (E.tentativa > 1 ? ' tentativa ' + E.tentativa + ' de ' + E.totalTentativas : '') + '</p>';
   else if(E.token) html += E.dados ? telaMotorista() : telaSemAcesso();
   else if(E.liberado) html += telaGestor();
   else html += telaPin();
