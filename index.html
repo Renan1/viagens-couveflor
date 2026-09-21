@@ -67,7 +67,7 @@
 const API = "https://script.google.com/macros/s/AKfycbyb3mIEaspqZPGhbWofnaqfZ7YwMV9URH0usuFylEIY7AFe8BKq2jlzzfMqZDyrpM4M/exec";
 /* ————————————————————————————————————————————————————————————————— */
 
-const VERSAO = "2.0";
+const VERSAO = "3.0";
 
 const TIPOS = {
   ida:   {sigla:"IDA",   rotulo:"Levar equipe",  sub:"casa → empresa", cor:"var(--ida)"},
@@ -115,17 +115,37 @@ const E = {
   liberado: false,
   semPin: false,
   csv: null,
-  diagnostico: null
+  diagnostico: null,
+  podeRepetir: false
 };
 
 /* ————— comunicação: tudo por GET, que é o que o Apps Script responde sem tropeço ————— */
-async function chamar(params){
+const espera = ms => new Promise(r => setTimeout(r, ms));
+
+/* O Apps Script às vezes demora para "acordar" ou devolve erro passageiro.
+   Em vez de desistir na primeira falha, tentamos três vezes com pausa. */
+async function chamar(params, tentativas){
+  tentativas = tentativas || 3;
   const u = new URL(API);
   Object.keys(params).forEach(k => { if(params[k]!=null && params[k]!=="") u.searchParams.set(k, params[k]); });
-  const r = await fetch(u.toString(), {method:"GET", redirect:"follow"});
-  const texto = await r.text();
-  try { return JSON.parse(texto); }
-  catch(e){ throw new Error("Resposta inesperada do servidor (HTTP "+r.status+")."); }
+  u.searchParams.set("_", Date.now());  // evita resposta velha em cache
+  let ultimo;
+  for(let i = 0; i < tentativas; i++){
+    const ctrl = new AbortController();
+    const relogio = setTimeout(() => ctrl.abort(), 25000);
+    try{
+      const r = await fetch(u.toString(), {method:"GET", redirect:"follow", cache:"no-store", signal:ctrl.signal});
+      const texto = await r.text();
+      try { return JSON.parse(texto); }
+      catch(e){ throw new Error("resposta inesperada do servidor (HTTP "+r.status+")"); }
+    } catch(e){
+      ultimo = e.name === "AbortError" ? new Error("o servidor demorou demais para responder") : e;
+      if(i < tentativas - 1) await espera(1200 * (i + 1));
+    } finally {
+      clearTimeout(relogio);
+    }
+  }
+  throw ultimo;
 }
 
 const fila = () => { try { return JSON.parse(localStorage.getItem("cf_fila")||"[]"); } catch(e){ return []; } };
@@ -143,24 +163,42 @@ async function esvaziarFila(){
   return restantes.length < f.length;
 }
 
+/* ————— cache: guarda a última lista que chegou, para a tela não ficar vazia ————— */
+function chaveCache(){ return "cf_cache_" + (E.token || "gestor") + "_" + E.mes; }
+function guardarCache(d){ try { localStorage.setItem(chaveCache(), JSON.stringify({em:Date.now(), d:d})); } catch(e){} }
+function lerCache(){
+  try{
+    const c = JSON.parse(localStorage.getItem(chaveCache()) || "null");
+    return c && c.d ? c : null;
+  } catch(e){ return null; }
+}
+
 /* ————— carregamento ————— */
 async function carregar(){
-  E.carregando = true; pintar();
+  E.carregando = true; E.podeRepetir = false; pintar();
   try{
     await esvaziarFila();
     if(E.token){
       const r = await chamar({acao:"motorista", t:E.token, mes:E.mes});
-      if(r.ok) E.dados = r;
+      if(r.ok){ E.dados = r; guardarCache(r); }
       else { E.aviso = r.erro; E.avisoBom = false; }
     } else if(E.liberado || E.pin){
       const r = await chamar({acao:"gestor", pin:E.pin, mes:E.mes});
       if(r.semPin){ E.semPin = true; E.liberado = false; }
-      else if(r.ok){ E.dados = r; E.liberado = true; localStorage.setItem("cf_pin", E.pin); }
+      else if(r.ok){ E.dados = r; E.liberado = true; guardarCache(r); localStorage.setItem("cf_pin", E.pin); }
       else { E.liberado = false; E.aviso = r.erro; E.avisoBom = false; }
     }
   } catch(err){
-    E.aviso = "Sem conexão com a planilha (" + err.message + "). O que for registrado fica guardado no celular e sobe sozinho depois.";
+    const c = lerCache();
+    if(c && !E.dados){
+      E.dados = c.d;
+      if(!E.token) E.liberado = true;
+    }
+    E.aviso = "A planilha não respondeu agora (" + err.message + "). " +
+      (c ? "A lista abaixo é a última que chegou — pode estar desatualizada. " : "") +
+      "Pode registrar normalmente: fica guardado no celular e sobe sozinho.";
     E.avisoBom = false;
+    E.podeRepetir = true;
   }
   E.carregando = false; E.ocupado = false; pintar();
 }
@@ -172,7 +210,8 @@ function pintar(){
   if(E.token && E.dados) html += '<span style="font-size:15px">'+esc(E.dados.nome)+'</span>';
   html += '</div>';
 
-  if(E.aviso) html += '<div class="aviso '+(E.avisoBom?"bom":"erro")+'">'+esc(E.aviso)+'</div>';
+  if(E.aviso) html += '<div class="aviso '+(E.avisoBom?"bom":"erro")+'">'+esc(E.aviso)+
+    (E.podeRepetir?' <button class="link" style="color:var(--texto)" data-acao="recarregar">tentar de novo</button>':'')+'</div>';
   const pendentes = fila().length;
   if(pendentes) html += '<div class="aviso erro">'+pendentes+(pendentes===1?" registro aguardando":" registros aguardando")+' envio. Abra o app com internet para subir.</div>';
 
@@ -341,7 +380,7 @@ const ACOES = {
     E.carimbo.manual = false; pintar();
   },
   mes(b){ E.mes = mover(E.mes, Number(b.dataset.passo)); E.csv = null; E.diagnostico = null; carregar(); },
-  recarregar(){ E.aviso = null; E.diagnostico = null; carregar(); },
+  recarregar(){ E.aviso = null; E.diagnostico = null; E.podeRepetir = false; carregar(); },
 
   tocar(b){
     if(E.ocupado) return;
