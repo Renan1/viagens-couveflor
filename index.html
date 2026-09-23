@@ -56,6 +56,8 @@
   .navmes span{font-family:var(--cond);font-size:23px;letter-spacing:.05em}
   pre{background:var(--caixa);border:1px solid var(--borda);border-radius:4px;padding:12px;
       font-size:12px;overflow-x:auto;color:#B9CDD8;max-height:170px;margin:0 0 20px}
+  .selo{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:3px;font-size:11px;
+        background:#123A33;border:1px solid #2B6558;color:var(--volta)}
   .rodape{margin-top:32px;font-size:11px;color:var(--apagado);text-align:center}
 </style>
 </head>
@@ -63,11 +65,11 @@
 <div id="app"></div>
 
 <script>
-/* ————— cole aqui o endereço /exec do aplicativo web do Apps Script ————— */
+/* ————— endereço /exec do aplicativo web do Apps Script ————— */
 const API = "https://script.google.com/macros/s/AKfycbyb3mIEaspqZPGhbWofnaqfZ7YwMV9URH0usuFylEIY7AFe8BKq2jlzzfMqZDyrpM4M/exec";
-/* ————————————————————————————————————————————————————————————————— */
+/* ————————————————————————————————————————————————————————— */
 
-const VERSAO = "3.1";
+const VERSAO = "4.0";
 
 const TIPOS = {
   ida:   {sigla:"IDA",   rotulo:"Levar equipe",  sub:"casa → empresa", cor:"var(--ida)"},
@@ -81,8 +83,9 @@ const hojeISO = () => { const d=new Date(); return d.getFullYear()+"-"+pad(d.get
 const agoraHM = () => { const d=new Date(); return pad(d.getHours())+":"+pad(d.getMinutes()); };
 const moeda = v => (Number(v)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const curto = iso => { const [a,m,d]=String(iso).split("-"); return d&&m ? d+"/"+m : iso; };
 function rotuloDia(iso){
-  const [a,m,d] = iso.split("-").map(Number);
+  const [a,m,d] = String(iso).split("-").map(Number);
   if(!a||!m||!d) return iso;
   return d+" de "+MESES[m-1]+", "+SEMANA[new Date(a,m-1,d).getDay()];
 }
@@ -92,10 +95,10 @@ function mover(mes,passo){
   const d=new Date(a,m-1+passo,1);
   return d.getFullYear()+"-"+pad(d.getMonth()+1);
 }
+const soma = l => l.reduce((s,v)=>s+Number(v.valor||0),0);
 
 /* O atalho na tela inicial abre sem o "?m=", porque o Chrome usa o start_url do
-   manifesto. Por isso o código do motorista fica guardado no próprio aparelho:
-   quem abriu pelo link pessoal continua entrando como ele. */
+   manifesto. Por isso o código do motorista fica guardado no próprio aparelho. */
 function tokenDoAparelho(){
   const naUrl = new URLSearchParams(location.search).get("m");
   if(naUrl){ try { localStorage.setItem("cf_motorista", naUrl); } catch(e){} return naUrl; }
@@ -108,27 +111,28 @@ const E = {
   carregando: true,
   ocupado: false,
   aviso: null, avisoBom: false,
+  podeRepetir: false,
+  tentativa: 1, totalTentativas: 3,
   dados: null,
   carimbo: {data: hojeISO(), hora: agoraHM(), manual: false},
   extraAberto: false,
+  fechando: null,
   pin: localStorage.getItem("cf_pin") || "",
   liberado: false,
   semPin: false,
   csv: null,
   diagnostico: null,
-  podeRepetir: false
+  esvaziando: false
 };
 
-/* ————— comunicação: tudo por GET, que é o que o Apps Script responde sem tropeço ————— */
+/* ————— comunicação: tudo por GET, com tempo limite e novas tentativas ————— */
 const espera = ms => new Promise(r => setTimeout(r, ms));
 
-/* O Apps Script às vezes demora para "acordar" ou devolve erro passageiro.
-   Em vez de desistir na primeira falha, tentamos três vezes com pausa. */
 async function chamar(params, tentativas, aoTentar){
   tentativas = tentativas || 3;
   const u = new URL(API);
   Object.keys(params).forEach(k => { if(params[k]!=null && params[k]!=="") u.searchParams.set(k, params[k]); });
-  u.searchParams.set("_", Date.now());  // evita resposta velha em cache
+  u.searchParams.set("_", Date.now());
   let ultimo;
   for(let i = 0; i < tentativas; i++){
     if(aoTentar) aoTentar(i + 1, tentativas);
@@ -142,9 +146,7 @@ async function chamar(params, tentativas, aoTentar){
     } catch(e){
       ultimo = e.name === "AbortError" ? new Error("o servidor demorou demais para responder") : e;
       if(i < tentativas - 1) await espera(1200 * (i + 1));
-    } finally {
-      clearTimeout(relogio);
-    }
+    } finally { clearTimeout(relogio); }
   }
   throw ultimo;
 }
@@ -152,10 +154,8 @@ async function chamar(params, tentativas, aoTentar){
 const fila = () => { try { return JSON.parse(localStorage.getItem("cf_fila")||"[]"); } catch(e){ return []; } };
 const setFila = f => localStorage.setItem("cf_fila", JSON.stringify(f));
 
-/* Reenvia o que ficou guardado sem internet. Roda em segundo plano, depois
-   que a tela já carregou, e nunca trava a abertura do app.
-   Se o servidor RECUSAR um item (link inválido, dado incompleto), ele sai
-   da fila — insistir não vai mudar a resposta. Só fica o que falhou por rede. */
+/* Reenvia o que ficou guardado sem internet. Roda depois que a tela carregou.
+   O que o servidor recusar sai da fila; insistir não mudaria a resposta. */
 async function esvaziarFila(){
   const f = fila();
   if(!f.length) return false;
@@ -175,17 +175,14 @@ async function esvaziarFila(){
   return restantes.length < f.length;
 }
 
-/* ————— cache: guarda a última lista que chegou, para a tela não ficar vazia ————— */
+/* ————— cache local ————— */
 function chaveCache(){ return "cf_cache_" + (E.token || "gestor") + "_" + E.mes; }
 function guardarCache(d){ try { localStorage.setItem(chaveCache(), JSON.stringify({em:Date.now(), d:d})); } catch(e){} }
 function lerCache(){
-  try{
-    const c = JSON.parse(localStorage.getItem(chaveCache()) || "null");
-    return c && c.d ? c : null;
-  } catch(e){ return null; }
+  try{ const c = JSON.parse(localStorage.getItem(chaveCache()) || "null"); return c && c.d ? c : null; }
+  catch(e){ return null; }
 }
 
-/* ————— carregamento ————— */
 function mostrarTentativa(n, total){ E.tentativa = n; E.totalTentativas = total; if(E.carregando) pintar(); }
 
 async function carregar(){
@@ -203,10 +200,7 @@ async function carregar(){
     }
   } catch(err){
     const c = lerCache();
-    if(c && !E.dados){
-      E.dados = c.d;
-      if(!E.token) E.liberado = true;
-    }
+    if(c && !E.dados){ E.dados = c.d; if(!E.token) E.liberado = true; }
     E.aviso = "A planilha não respondeu agora (" + err.message + "). " +
       (c ? "A lista abaixo é a última que chegou — pode estar desatualizada. " : "") +
       "Pode registrar normalmente: fica guardado no celular e sobe sozinho.";
@@ -217,10 +211,7 @@ async function carregar(){
 
   if(fila().length && !E.esvaziando){
     E.esvaziando = true;
-    esvaziarFila().then(enviou => {
-      E.esvaziando = false;
-      if(enviou) carregar(); else pintar();
-    });
+    esvaziarFila().then(enviou => { E.esvaziando = false; if(enviou) carregar(); else pintar(); });
   }
 }
 
@@ -276,17 +267,34 @@ function telaMotorista(){
     }
   }
 
+  // resumo do que ainda não foi pago
+  h += '<div class="caixa" style="margin-top:24px;border-left:6px solid var(--ida)">'+
+       '<span style="font-size:13px;color:var(--fraco)">A receber</span>'+
+       '<div style="font-family:var(--cond);font-size:40px;line-height:1.1;color:var(--ida)">'+moeda(E.dados.abertoValor||0)+'</div>'+
+       '<span style="font-size:13px;color:var(--fraco)">'+(E.dados.abertoQtd||0)+
+         ((E.dados.abertoQtd===1)?" viagem em aberto":" viagens em aberto")+
+         (E.dados.abertoDesde?" · desde "+curto(E.dados.abertoDesde):"")+'</span></div>';
+
+  const pgs = (E.dados.pagamentos||[]).slice().sort((a,b)=>String(b.ate).localeCompare(String(a.ate)));
+  if(pgs.length){
+    h += '<p class="dia" style="margin-top:22px">Pagamentos recebidos</p>';
+    for(const p of pgs.slice(0,6)){
+      h += '<div class="viagem"><span style="flex:1;font-size:14px">'+curto(p.de)+' a '+curto(p.ate)+
+           ' · '+p.qtd+(p.qtd===1?" viagem":" viagens")+'</span>'+
+           '<span class="valor" style="color:var(--volta)">'+moeda(p.valor)+'</span></div>';
+    }
+  }
+
   const vs = (E.dados.viagens||[]).slice().sort((a,b)=>(b.data+b.hora).localeCompare(a.data+a.hora));
-  const soma = vs.reduce((s,v)=>s+Number(v.valor||0),0);
-  h += '<div class="navmes" style="margin-top:32px">'+
+  h += '<div class="navmes" style="margin-top:28px">'+
        '<button class="seta" data-acao="mes" data-passo="-1">‹</button>'+
        '<span>'+rotuloMes(E.mes)+' · '+vs.length+(vs.length===1?" viagem":" viagens")+'</span>'+
        '<button class="seta" data-acao="mes" data-passo="1">›</button></div>'+
-       '<p style="font-size:15px;color:var(--fraco);margin:0 0 16px">'+moeda(soma)+' no mês</p>';
+       '<p style="font-size:15px;color:var(--fraco);margin:0 0 16px">'+moeda(soma(vs))+' no mês</p>';
 
   h += listar(vs, {cancelar:"cancelar"});
   h += '<p style="font-size:12px;color:var(--apagado);margin-top:16px;line-height:1.5">'+
-       'Você cancela o que lançou hoje. Registro de outros dias, só o gestor cancela.</p>'+
+       'Você cancela o que lançou hoje. Registro de outros dias, ou viagem já paga, só o gestor mexe.</p>'+
        '<p style="margin-top:20px"><button class="link" data-acao="sair">não sou '+esc(E.dados.nome)+'</button></p>';
   return h;
 }
@@ -315,44 +323,76 @@ function telaPin(){
 function telaGestor(){
   const d = E.dados;
   const vs = (d.viagens||[]).slice().sort((a,b)=>(b.data+b.hora).localeCompare(a.data+a.hora));
-  const total = vs.reduce((s,v)=>s+Number(v.valor||0),0);
-  const pago = (d.pagos||[]).indexOf(E.mes) >= 0;
+  const abertas = d.abertas || [];
+  const pgs = (d.pagamentos||[]).slice().sort((a,b)=>String(b.ate).localeCompare(String(a.ate)));
 
   let h = '<div class="navmes">'+
     '<button class="seta" data-acao="mes" data-passo="-1">‹</button><span>'+rotuloMes(E.mes)+'</span>'+
     '<button class="seta" data-acao="mes" data-passo="1">›</button></div>'+
-    '<p class="total">'+moeda(total)+'</p>'+
-    '<p style="font-size:14px;color:#7F9AAC;margin:0 0 18px">'+vs.length+(vs.length===1?" viagem":" viagens")+
-      (pago?' · <span style="color:var(--volta)">pago</span>':'')+'</p>';
+    '<p class="total">'+moeda(soma(vs))+'</p>'+
+    '<p style="font-size:14px;color:#7F9AAC;margin:0 0 6px">'+vs.length+(vs.length===1?" viagem no mês":" viagens no mês")+'</p>'+
+    '<p style="font-size:14px;color:var(--ida);margin:0 0 20px">'+moeda(soma(abertas))+' em aberto no total, '+
+      abertas.length+(abertas.length===1?" viagem":" viagens")+'</p>';
 
-  if((d.motoristas||[]).length){
-    h += '<div style="margin-bottom:20px">';
-    for(const m of d.motoristas){
-      const dele = vs.filter(v=>v.motorista===m.id);
-      const s = dele.reduce((x,v)=>x+Number(v.valor||0),0);
-      h += '<div style="display:flex;align-items:baseline;gap:10px;padding:8px 0;border-bottom:1px solid var(--linha)">'+
-           '<span style="flex:1;font-size:16px">'+esc(m.nome)+
-             '<br><span style="font-size:12px;color:var(--apagado)">tarifa '+moeda(m.tarifa)+'</span></span>'+
-           '<span style="font-family:var(--cond);font-size:22px;color:var(--fraco)">'+dele.length+'</span>'+
-           '<span style="font-size:15px;min-width:92px;text-align:right;font-variant-numeric:tabular-nums">'+moeda(s)+'</span></div>';
+  // ——— fechamento por motorista ———
+  h += '<p class="dia" style="font-size:20px;margin-bottom:8px">A pagar</p>';
+  if(!abertas.length) h += '<p style="font-size:14px;color:var(--apagado);margin-bottom:20px">Nada em aberto. Tudo fechado.</p>';
+  for(const m of (d.motoristas||[])){
+    const dele = abertas.filter(v=>v.motorista===m.id);
+    if(!dele.length) continue;
+    const datas = dele.map(v=>v.data).sort();
+    h += '<div style="padding:10px 0;border-bottom:1px solid var(--linha)">'+
+      '<div style="display:flex;align-items:center;gap:10px">'+
+        '<span style="flex:1;font-size:16px">'+esc(m.nome)+
+          '<br><span style="font-size:12px;color:var(--apagado)">'+dele.length+
+          (dele.length===1?" viagem":" viagens")+' desde '+curto(datas[0])+'</span></span>'+
+        '<span style="font-family:var(--cond);font-size:26px;color:var(--ida);font-variant-numeric:tabular-nums">'+moeda(soma(dele))+'</span>'+
+        '<button class="acao mini" data-acao="abrirFechamento" data-id="'+m.id+'">fechar</button>'+
+      '</div>';
+    if(E.fechando && E.fechando.id === m.id){
+      const entram = dele.filter(v => v.data <= E.fechando.ate);
+      h += '<div class="caixa" style="margin-top:10px">'+
+        '<p style="font-size:13px;color:var(--fraco);margin:0 0 8px">Fechar viagens até o dia:</p>'+
+        '<input type="date" id="fAte" class="campo" value="'+E.fechando.ate+'" data-acao="nada">'+
+        '<p style="font-size:14px;margin:10px 0 0">Entram <strong>'+entram.length+'</strong> '+
+          (entram.length===1?"viagem":"viagens")+' · <strong>'+moeda(soma(entram))+'</strong></p>'+
+        '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">'+
+          '<button class="acao" data-acao="confirmarFechamento" data-id="'+m.id+'">Confirmar pagamento</button>'+
+          '<button class="link" data-acao="cancelarFechamento">cancelar</button></div>'+
+        '<p style="font-size:12px;color:var(--apagado);margin:12px 0 0;line-height:1.5">'+
+          'As viagens entram no pagamento e saem do "a pagar". O motorista passa a ver como recebido.</p></div>';
     }
     h += '</div>';
   }
 
-  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">'+
-    '<button class="acao" data-acao="csv">Copiar planilha</button>'+
-    '<button class="acao" data-acao="pago">'+(pago?"Desmarcar pagamento":"Marcar como pago")+'</button>'+
+  // ——— histórico de pagamentos ———
+  h += '<p class="dia" style="font-size:20px;margin:24px 0 8px">Pagamentos</p>';
+  if(!pgs.length) h += '<p style="font-size:14px;color:var(--apagado)">Nenhum pagamento fechado ainda.</p>';
+  for(const p of pgs.slice(0,20)){
+    h += '<div class="viagem">'+
+      '<span style="flex:1;font-size:14px">'+esc(p.nome)+
+        '<br><span style="font-size:12px;color:var(--apagado)">'+curto(p.de)+' a '+curto(p.ate)+' · '+
+        p.qtd+(p.qtd===1?" viagem":" viagens")+' · pago em '+esc(String(p.pagoEm).split(" ")[0])+'</span></span>'+
+      '<span class="valor" style="color:var(--volta)">'+moeda(p.valor)+'</span>'+
+      '<button class="acao mini" data-acao="desfazerPagamento" data-id="'+esc(p.id)+'">desfazer</button></div>';
+  }
+
+  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:20px 0">'+
+    '<button class="acao" data-acao="csvViagens">Copiar viagens</button>'+
+    '<button class="acao" data-acao="csvPagamentos">Copiar pagamentos</button>'+
     '<button class="acao" data-acao="recarregar">Atualizar</button>'+
     '<button class="acao" data-acao="testar">Testar conexão</button></div>';
 
   if(E.diagnostico) h += '<pre>'+esc(E.diagnostico)+'</pre>';
   if(E.csv) h += '<pre>'+esc(E.csv)+'</pre>';
 
+  // ——— cadastro ———
   h += '<p class="dia" style="font-size:20px;margin-bottom:8px">Motoristas</p>';
   for(const m of (d.motoristas||[])){
     h += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--linha)">'+
-      '<span style="flex:1;font-size:15px">'+esc(m.nome)+'</span>'+
-      '<button class="acao mini" data-acao="copiarLink" data-id="'+m.id+'">copiar link</button>'+
+      '<span style="flex:1;font-size:15px">'+esc(m.nome)+
+        '<br><span style="font-size:12px;color:var(--apagado)">tarifa '+moeda(m.tarifa)+'</span></span>'+
+      '<button class="acao mini" data-acao="copiarLink" data-id="'+m.id+'">link</button>'+
       '<button class="acao mini" data-acao="tarifa" data-id="'+m.id+'" data-tarifa="'+m.tarifa+'">tarifa</button>'+
       '<button class="acao mini" data-acao="rmMotorista" data-id="'+m.id+'">remover</button></div>';
   }
@@ -361,6 +401,7 @@ function telaGestor(){
     '<input id="nTarifa" class="campo" inputmode="decimal" placeholder="Tarifa" style="width:96px">'+
     '<button class="acao" data-acao="addMotorista">Adicionar</button></div>';
 
+  h += '<p class="dia" style="font-size:20px;margin-bottom:8px">Viagens de '+rotuloMes(E.mes)+'</p>';
   h += listar(vs, {nome:true, cancelar:"cancelarG"});
   return h;
 }
@@ -371,18 +412,18 @@ function listar(vs, op){
   vs.forEach(v => { (dias[v.data] = dias[v.data] || []).push(v); });
   let h = "";
   for(const d of Object.keys(dias).sort((a,b)=>b.localeCompare(a))){
-    const soma = dias[d].reduce((s,v)=>s+Number(v.valor||0),0);
-    h += '<div style="margin-bottom:16px"><p class="dia">'+rotuloDia(d)+' · '+moeda(soma)+'</p>';
+    h += '<div style="margin-bottom:16px"><p class="dia">'+rotuloDia(d)+' · '+moeda(soma(dias[d]))+'</p>';
     for(const v of dias[d]){
       const t = TIPOS[v.tipo] || TIPOS.extra;
+      const pago = !!v.pagamento;
       const meio = [op.nome ? v.nome : "", v.descricao].filter(Boolean).join(" · ");
-      // o motorista só pode cancelar o que lançou hoje; o gestor cancela qualquer uma
-      const podeCancelar = op.cancelar === "cancelarG" ||
-        (E.dados && E.dados.hoje && String(v.enviado).indexOf(E.dados.hoje) === 0);
-      h += '<div class="viagem">'+
+      // viagem paga não se cancela; motorista só cancela o que lançou hoje
+      const podeCancelar = !pago && (op.cancelar === "cancelarG" ||
+        (E.dados && E.dados.hoje && String(v.enviado).indexOf(E.dados.hoje) === 0));
+      h += '<div class="viagem"'+(pago?' style="opacity:.62"':'')+'>'+
         '<span class="hora">'+esc(v.hora)+'</span>'+
         '<span class="tipo" style="color:'+t.cor+'">'+t.sigla+'</span>'+
-        '<span class="meio">'+esc(meio)+'</span>'+
+        '<span class="meio">'+esc(meio)+(pago?'<span class="selo">pago</span>':'')+'</span>'+
         '<span class="valor">'+moeda(v.valor)+'</span>'+
         (podeCancelar ? '<button class="acao mini" data-acao="'+op.cancelar+'" data-id="'+esc(v.id)+'">cancelar</button>' : '')+
       '</div>';
@@ -394,6 +435,7 @@ function listar(vs, op){
 
 /* ————— ações ————— */
 const ACOES = {
+  nada(){},
   abrirCarimbo(){ E.carimbo.manual = true; pintar(); },
   fecharCarimbo(){
     const d = document.getElementById("cData"), h = document.getElementById("cHora");
@@ -428,6 +470,36 @@ const ACOES = {
     await remover({acao:"cancelar_g", pin:E.pin, id:b.dataset.id});
   },
 
+  abrirFechamento(b){
+    E.fechando = {id: b.dataset.id, ate: (E.dados.hojeISO || hojeISO())};
+    E.csv = null; pintar();
+  },
+  cancelarFechamento(){ E.fechando = null; pintar(); },
+  async confirmarFechamento(b){
+    const campo = document.getElementById("fAte");
+    const ate = campo && campo.value ? campo.value : (E.dados.hojeISO || hojeISO());
+    if(!confirm("Confirmar o pagamento das viagens até "+curto(ate)+"?")) return;
+    E.ocupado = true; E.aviso = "Fechando pagamento…"; E.avisoBom = true; pintar();
+    try{
+      const r = await chamar({acao:"fechar_pagamento", pin:E.pin, motorista:b.dataset.id, ate:ate}, 2);
+      if(r.ok){
+        E.fechando = null;
+        E.aviso = "Pagamento fechado: "+r.qtd+(r.qtd===1?" viagem, ":" viagens, ")+moeda(r.valor)+".";
+        E.avisoBom = true;
+        await carregar();
+      } else { E.aviso = r.erro; E.avisoBom = false; E.ocupado = false; pintar(); }
+    } catch(e){ E.aviso = "Não deu para fechar agora: "+e.message; E.avisoBom = false; E.ocupado = false; pintar(); }
+  },
+  async desfazerPagamento(b){
+    if(!confirm("Desfazer este pagamento? As viagens voltam para o 'a pagar'.")) return;
+    E.ocupado = true; E.aviso = "Desfazendo…"; E.avisoBom = true; pintar();
+    try{
+      const r = await chamar({acao:"desfazer_pagamento", pin:E.pin, id:b.dataset.id}, 2);
+      if(r.ok){ E.aviso = "Pagamento desfeito."; E.avisoBom = true; await carregar(); }
+      else { E.aviso = r.erro; E.avisoBom = false; E.ocupado = false; pintar(); }
+    } catch(e){ E.aviso = "Não deu para desfazer agora: "+e.message; E.avisoBom = false; E.ocupado = false; pintar(); }
+  },
+
   sair(){
     if(!confirm("Sair deste acesso neste celular?")) return;
     try { localStorage.removeItem("cf_motorista"); } catch(e){}
@@ -450,7 +522,7 @@ const ACOES = {
   async testar(){
     E.diagnostico = "Testando…"; pintar();
     try{
-      const r = await chamar({acao:"ping"});
+      const r = await chamar({acao:"ping"}, 2);
       E.diagnostico = "Conexão OK\n" + JSON.stringify(r, null, 2);
     } catch(e){
       E.diagnostico = "Falhou: " + e.message +
@@ -459,19 +531,27 @@ const ACOES = {
     pintar();
   },
 
-  csv(){
+  csvViagens(){
     const vs = (E.dados.viagens||[]).slice().sort((a,b)=>(a.data+a.hora).localeCompare(b.data+b.hora));
-    const linhas = ["motorista;data;hora;tipo;valor;descricao;enviado_em"].concat(vs.map(v => {
+    const pagos = {};
+    (E.dados.pagamentos||[]).forEach(p => { pagos[p.id] = p; });
+    const linhas = ["motorista;data;hora;tipo;valor;descricao;enviado_em;situacao;pago_em"].concat(vs.map(v => {
       const [a,m,d] = v.data.split("-");
+      const p = v.pagamento ? pagos[v.pagamento] : null;
       return [v.nome, d+"/"+m+"/"+a, v.hora, (TIPOS[v.tipo]||{}).sigla||v.tipo,
-              Number(v.valor).toFixed(2).replace(".",","), v.descricao, v.enviado].join(";");
+              Number(v.valor).toFixed(2).replace(".",","), v.descricao, v.enviado,
+              v.pagamento ? "pago" : "em aberto", p ? String(p.pagoEm).split(" ")[0] : ""].join(";");
     }));
-    E.csv = linhas.join("\n");
-    if(navigator.clipboard) navigator.clipboard.writeText(E.csv).catch(()=>{});
-    E.aviso = "Planilha copiada. Cole no Excel e separe por ponto e vírgula."; E.avisoBom = true;
-    pintar();
+    copiarCsv(linhas.join("\n"), "Viagens do mês copiadas.");
   },
-  pago(){ chamar({acao:"pago", pin:E.pin, mes:E.mes}).then(()=>carregar()).catch(e=>{ E.aviso=e.message; E.avisoBom=false; pintar(); }); },
+  csvPagamentos(){
+    const pgs = (E.dados.pagamentos||[]).slice().sort((a,b)=>String(a.ate).localeCompare(String(b.ate)));
+    const linhas = ["motorista;periodo_de;periodo_ate;viagens;valor;pago_em;observacao"].concat(pgs.map(p => {
+      return [p.nome, curto(p.de)+"/"+String(p.de).slice(0,4), curto(p.ate)+"/"+String(p.ate).slice(0,4),
+              p.qtd, Number(p.valor).toFixed(2).replace(".",","), p.pagoEm, p.obs].join(";");
+    }));
+    copiarCsv(linhas.join("\n"), "Pagamentos copiados — é o que vai para o dashboard financeiro.");
+  },
 
   copiarLink(b){
     const url = location.origin + location.pathname + "?m=" + b.dataset.id;
@@ -483,7 +563,7 @@ const ACOES = {
     const t = (document.getElementById("nTarifa")||{}).value || "";
     if(!n.trim() || !Number(String(t).replace(",","."))){ E.aviso = "Informe nome e tarifa."; E.avisoBom = false; return pintar(); }
     chamar({acao:"add_motorista", pin:E.pin, nome:n, tarifa:t}).then(r => {
-      if(r.ok){ E.aviso = "Motorista cadastrado. Use “copiar link” para mandar o acesso dele."; E.avisoBom = true; }
+      if(r.ok){ E.aviso = "Motorista cadastrado. Use “link” para mandar o acesso dele."; E.avisoBom = true; }
       else { E.aviso = r.erro; E.avisoBom = false; }
       carregar();
     }).catch(e => { E.aviso = e.message; E.avisoBom = false; pintar(); });
@@ -502,13 +582,19 @@ const ACOES = {
   }
 };
 
+function copiarCsv(texto, recado){
+  E.csv = texto;
+  if(navigator.clipboard) navigator.clipboard.writeText(texto).catch(()=>{});
+  E.aviso = recado + " Cole no Excel e separe por ponto e vírgula.";
+  E.avisoBom = true;
+  pintar();
+}
+
 async function registrar(tipo, valor, descricao){
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
   const p = {acao:"registrar", t:E.token, id:id, tipo:tipo,
              data:E.carimbo.data, hora:E.carimbo.hora, valor:valor, descricao:descricao};
-  E.ocupado = true;
-  E.aviso = "Enviando…"; E.avisoBom = true;
-  pintar();
+  E.ocupado = true; E.aviso = "Enviando…"; E.avisoBom = true; pintar();
   try{
     const r = await chamar(p);
     if(r.ok){
@@ -517,33 +603,33 @@ async function registrar(tipo, valor, descricao){
       E.aviso = TIPOS[tipo].rotulo + " registrada às " + p.hora + "."; E.avisoBom = true;
       await carregar();
     } else {
-      E.aviso = "Não registrou: " + r.erro; E.avisoBom = false;
-      E.ocupado = false; pintar();
+      E.aviso = "Não registrou: " + r.erro; E.avisoBom = false; E.ocupado = false; pintar();
     }
   } catch(err){
     const f = fila(); f.push(p); setFila(f);
     E.extraAberto = false;
     E.aviso = "Sem internet agora. A viagem ficou guardada no celular e sobe sozinha quando a conexão voltar.";
-    E.avisoBom = true;
-    E.ocupado = false; pintar();
+    E.avisoBom = true; E.ocupado = false; pintar();
   }
 }
 
 async function remover(params){
   E.ocupado = true; E.aviso = "Cancelando…"; E.avisoBom = true; pintar();
   try{
-    const r = await chamar(params);
+    const r = await chamar(params, 2);
     if(r.ok){ E.aviso = "Viagem cancelada."; E.avisoBom = true; await carregar(); }
     else { E.aviso = r.erro; E.avisoBom = false; E.ocupado = false; pintar(); }
   } catch(e){
-    E.aviso = "Não deu para cancelar agora: " + e.message; E.avisoBom = false;
-    E.ocupado = false; pintar();
+    E.aviso = "Não deu para cancelar agora: " + e.message; E.avisoBom = false; E.ocupado = false; pintar();
   }
 }
 
 document.getElementById("app").addEventListener("click", ev => {
   const b = ev.target.closest("[data-acao]");
   if(b && ACOES[b.dataset.acao]) ACOES[b.dataset.acao](b);
+});
+document.getElementById("app").addEventListener("change", ev => {
+  if(ev.target.id === "fAte" && E.fechando){ E.fechando.ate = ev.target.value; pintar(); }
 });
 window.addEventListener("online", () => esvaziarFila().then(m => { if(m) carregar(); }));
 setInterval(() => { if(!E.carimbo.manual && !E.ocupado){ E.carimbo.data = hojeISO(); E.carimbo.hora = agoraHM(); } }, 20000);
