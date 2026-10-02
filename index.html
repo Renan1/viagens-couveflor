@@ -83,12 +83,15 @@ const hojeISO = () => { const d=new Date(); return d.getFullYear()+"-"+pad(d.get
 const agoraHM = () => { const d=new Date(); return pad(d.getHours())+":"+pad(d.getMinutes()); };
 const moeda = v => (Number(v)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const curto = iso => { const [a,m,d]=String(iso).split("-"); return d&&m ? d+"/"+m : iso; };
+// data vem da planilha (digitada pelo motorista): sempre escapar, vai direto para o innerHTML
+const curto = iso => { const [a,m,d]=String(iso).split("-"); return esc(d&&m ? d+"/"+m : iso); };
 function rotuloDia(iso){
   const [a,m,d] = String(iso).split("-").map(Number);
-  if(!a||!m||!d) return iso;
+  if(!a||!m||!d) return esc(iso);
   return d+" de "+MESES[m-1]+", "+SEMANA[new Date(a,m-1,d).getDay()];
 }
+// impede que texto vire fórmula ao colar no Excel
+const celula = s => /^[=+\-@\t\r]/.test(String(s==null?"":s)) ? "'"+s : String(s==null?"":s);
 function rotuloMes(mes){ const [a,m]=mes.split("-"); return MESES[Number(m)-1]+" "+a; }
 function mover(mes,passo){
   const [a,m]=mes.split("-").map(Number);
@@ -544,7 +547,7 @@ const ACOES = {
       const p = v.pagamento ? pagos[v.pagamento] : null;
       return [v.nome, d+"/"+m+"/"+a, v.hora, (TIPOS[v.tipo]||{}).sigla||v.tipo,
               Number(v.valor).toFixed(2).replace(".",","), v.descricao, v.enviado,
-              v.pagamento ? "pago" : "em aberto", p ? String(p.pagoEm).split(" ")[0] : ""].join(";");
+              v.pagamento ? "pago" : "em aberto", p ? String(p.pagoEm).split(" ")[0] : ""].map(celula).join(";");
     }));
     copiarCsv(linhas.join("\n"), "Viagens do mês copiadas.");
   },
@@ -552,7 +555,7 @@ const ACOES = {
     const pgs = (E.dados.pagamentos||[]).slice().sort((a,b)=>String(a.ate).localeCompare(String(b.ate)));
     const linhas = ["motorista;periodo_de;periodo_ate;viagens;valor;pago_em;observacao"].concat(pgs.map(p => {
       return [p.nome, curto(p.de)+"/"+String(p.de).slice(0,4), curto(p.ate)+"/"+String(p.ate).slice(0,4),
-              p.qtd, Number(p.valor).toFixed(2).replace(".",","), p.pagoEm, p.obs].join(";");
+              p.qtd, Number(p.valor).toFixed(2).replace(".",","), p.pagoEm, p.obs].map(celula).join(";");
     }));
     copiarCsv(linhas.join("\n"), "Pagamentos copiados — é o que vai para o dashboard financeiro.");
   },

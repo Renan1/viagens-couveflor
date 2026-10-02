@@ -193,6 +193,9 @@ function processar(p) {
     var mot = acharMotorista(p.t);
     if (!mot) return { ok: false, erro: 'Link inválido.' };
     if (!p.id || !p.tipo || !p.data || !p.hora) return { ok: false, erro: 'Dados incompletos.' };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(p.data)) || !/^\d{2}:\d{2}$/.test(String(p.hora))) {
+      return { ok: false, erro: 'Data ou hora inválida.' };
+    }
 
     var valor = mot.tarifa;
     if (p.tipo === 'extra') {
