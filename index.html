@@ -139,7 +139,11 @@ async function chamar(params, tentativas, aoTentar){
     const ctrl = new AbortController();
     const relogio = setTimeout(() => ctrl.abort(), 15000);
     try{
-      const r = await fetch(u.toString(), {method:"GET", redirect:"follow", cache:"no-store", signal:ctrl.signal});
+      // ações com PIN vão por POST (o servidor recusa gestor por GET) e o PIN não fica na URL;
+      // text/plain evita o preflight de CORS que o Apps Script não responde
+      const r = ("pin" in params)
+        ? await fetch(API, {method:"POST", body:JSON.stringify(params), headers:{"Content-Type":"text/plain"}, redirect:"follow", cache:"no-store", signal:ctrl.signal})
+        : await fetch(u.toString(), {method:"GET", redirect:"follow", cache:"no-store", signal:ctrl.signal});
       const texto = await r.text();
       try { return JSON.parse(texto); }
       catch(e){ throw new Error("resposta inesperada do servidor (HTTP "+r.status+")"); }
