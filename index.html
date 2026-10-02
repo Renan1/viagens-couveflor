@@ -69,7 +69,7 @@
 const API = "https://script.google.com/macros/s/AKfycbyb3mIEaspqZPGhbWofnaqfZ7YwMV9URH0usuFylEIY7AFe8BKq2jlzzfMqZDyrpM4M/exec";
 /* ————————————————————————————————————————————————————————— */
 
-const VERSAO = "4.0";
+const VERSAO = "4.1";
 
 const TIPOS = {
   ida:   {sigla:"IDA",   rotulo:"Levar equipe",  sub:"casa → empresa", cor:"var(--ida)"},
@@ -105,7 +105,20 @@ const soma = l => l.reduce((s,v)=>s+Number(v.valor||0),0);
 function tokenDoAparelho(){
   const naUrl = new URLSearchParams(location.search).get("m");
   if(naUrl){ try { localStorage.setItem("cf_motorista", naUrl); } catch(e){} return naUrl; }
-  try { return localStorage.getItem("cf_motorista") || null; } catch(e){ return null; }
+  let guardado = null;
+  try { guardado = localStorage.getItem("cf_motorista"); } catch(e){}
+  // devolve o "?m=" ao endereço: assim um favorito ou atalho simples carrega o
+  // código junto, e o acesso sobrevive a uma limpeza de dados do navegador
+  if(guardado){
+    try { history.replaceState(null, "", location.pathname + "?m=" + encodeURIComponent(guardado)); } catch(e){}
+  }
+  return guardado || null;
+}
+
+// ?sair=1 limpa o acesso de motorista deste aparelho (usado pelo gestor após testes)
+if(new URLSearchParams(location.search).get("sair")){
+  try { localStorage.removeItem("cf_motorista"); } catch(e){}
+  location.replace(location.pathname);
 }
 
 const E = {
@@ -125,7 +138,8 @@ const E = {
   semPin: false,
   csv: null,
   diagnostico: null,
-  esvaziando: false
+  esvaziando: false,
+  papel: null
 };
 
 /* ————— comunicação: tudo por GET, com tempo limite e novas tentativas ————— */
@@ -207,7 +221,10 @@ async function carregar(){
     }
   } catch(err){
     const c = lerCache();
-    if(c && !E.dados){ E.dados = c.d; if(!E.token) E.liberado = true; }
+    if(c){ E.dados = c.d; if(!E.token) E.liberado = true; }
+    // sem resposta não é o mesmo que link inválido: o motorista continua vendo os botões
+    // e registra pela fila. A tela de "acesso não vale mais" fica só para recusa do servidor.
+    else if(E.token) E.dados = {semConexao:true, viagens:[], pagamentos:[]};
     E.aviso = "A planilha não respondeu agora (" + err.message + "). " +
       (c ? "A lista abaixo é a última que chegou — pode estar desatualizada. " : "") +
       "Pode registrar normalmente: fica guardado no celular e sobe sozinho.";
@@ -238,6 +255,7 @@ function pintar(){
     (E.tentativa > 1 ? ' tentativa ' + E.tentativa + ' de ' + E.totalTentativas : '') + '</p>';
   else if(E.token) html += E.dados ? telaMotorista() : telaSemAcesso();
   else if(E.liberado) html += telaGestor();
+  else if(!E.pin && !E.semPin && E.papel !== "gestor") html += telaEscolha();
   else html += telaPin();
 
   html += '<p class="rodape">versão '+VERSAO+'</p>';
@@ -258,6 +276,7 @@ function telaMotorista(){
          '<button class="link" data-acao="abrirCarimbo">outro dia ou horário</button></div>';
   }
   h += '</div>';
+  const offline = !!E.dados.semConexao;
 
   for(const t of ["ida","volta","extra"]){
     h += '<button class="caixa botao-viagem" '+(E.ocupado?"disabled":"")+
@@ -273,6 +292,10 @@ function telaMotorista(){
            '<button class="link" data-acao="cancelarExtra">fechar</button></div></div>';
     }
   }
+
+  // sem dados do servidor, não há o que resumir: mostrar zero seria informação errada
+  if(offline) return h + '<p style="font-size:14px;color:var(--fraco);margin-top:24px;line-height:1.6">'+
+    'Seu saldo e a lista de viagens aparecem quando a conexão voltar.</p>';
 
   // resumo do que ainda não foi pago
   h += '<div class="caixa" style="margin-top:24px;border-left:6px solid var(--ida)">'+
@@ -301,8 +324,7 @@ function telaMotorista(){
 
   h += listar(vs, {cancelar:"cancelar"});
   h += '<p style="font-size:12px;color:var(--apagado);margin-top:16px;line-height:1.5">'+
-       'Você cancela o que lançou hoje. Registro de outros dias, ou viagem já paga, só o gestor mexe.</p>'+
-       '<p style="margin-top:20px"><button class="link" data-acao="sair">não sou '+esc(E.dados.nome)+'</button></p>';
+       'Você cancela o que lançou hoje. Registro de outros dias, ou viagem já paga, só o gestor mexe.</p>';
   return h;
 }
 
@@ -311,6 +333,20 @@ function telaSemAcesso(){
     'Este aparelho está com um acesso de motorista que não vale mais. Abra de novo o link que o gestor mandou, '+
     'ou saia para entrar como gestor.</p>'+
     '<p style="margin-top:16px"><button class="acao" data-acao="sair">Sair deste acesso</button></p>';
+}
+
+function telaEscolha(){
+  if(E.papel === "motorista"){
+    return '<p style="font-family:var(--cond);font-size:26px;margin:0 0 6px">Este celular não está identificado</p>'+
+      '<p style="font-size:15px;color:var(--fraco);line-height:1.6">Peça ao gestor para reenviar o seu link pessoal no WhatsApp '+
+      'e abra por ele. Depois disso o aplicativo volta a abrir direto nas suas viagens.</p>'+
+      '<p style="margin-top:18px"><button class="link" data-acao="voltarEscolha">voltar</button></p>';
+  }
+  return '<p style="font-family:var(--cond);font-size:26px;margin:0 0 14px">Quem está entrando?</p>'+
+    '<button class="caixa" style="margin-bottom:10px;font-size:18px" data-acao="souMotorista">Sou motorista</button>'+
+    '<button class="caixa" style="font-size:18px" data-acao="souGestor">Sou o gestor</button>'+
+    '<p style="margin-top:22px"><button class="link" data-acao="testar">testar conexão com a planilha</button></p>'+
+    (E.diagnostico?'<pre>'+esc(E.diagnostico)+'</pre>':'');
 }
 
 function telaPin(){
@@ -512,6 +548,10 @@ const ACOES = {
     try { localStorage.removeItem("cf_motorista"); } catch(e){}
     location.href = location.origin + location.pathname;
   },
+
+  souMotorista(){ E.papel = "motorista"; pintar(); },
+  souGestor(){ E.papel = "gestor"; pintar(); },
+  voltarEscolha(){ E.papel = null; E.diagnostico = null; pintar(); },
 
   criarPin(){
     const p = (document.getElementById("pin")||{}).value || "";
