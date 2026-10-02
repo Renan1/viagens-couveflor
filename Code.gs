@@ -1,13 +1,17 @@
 /**
- * Controle de viagens — Couve Flor Refeições  (versão 4)
+ * Controle de viagens — Couve Flor Refeições  (versão 5)
  * Publicar como aplicativo web: Executar como "Eu" | Acesso "Qualquer pessoa".
  * Depois de qualquer alteração aqui: Implantar -> Gerenciar implantações -> lápis -> Nova versão.
  *
  * Pagamento agora é por viagem, não por mês: cada fechamento marca as viagens
  * em aberto de um motorista até uma data, e vira uma linha na aba Pagamentos.
+ *
+ * Versão 5: todo pagamento é PIX e guarda o código E2E da transação. O comprovante
+ * (PDF ou imagem) fica numa pasta privada do Drive de quem publica o script; o
+ * motorista vê só o E2E, nunca o arquivo.
  */
 
-var VERSAO = 4;
+var VERSAO = 5;
 var ABA_V = 'Viagens';
 var ABA_M = 'Motoristas';
 var ABA_A = 'Ajustes';
@@ -64,12 +68,14 @@ function formatarTexto(s, colunas) {
 }
 
 var COL_V = ['ID', 'Código', 'Motorista', 'Tipo', 'Data', 'Hora', 'Valor', 'Descrição', 'Enviado em', 'Pagamento'];
-var COL_P = ['ID', 'Código', 'Motorista', 'De', 'Até', 'Viagens', 'Valor', 'Pago em', 'Observação'];
+var COL_P = ['ID', 'Código', 'Motorista', 'De', 'Até', 'Viagens', 'Valor', 'Pago em', 'Observação',
+             'E2E', 'Comprovante'];
+var TEXTO_P = [1, 2, 4, 5, 8, 10, 11];
 
 function abaViagens() { return aba(ABA_V, COL_V, [1, 2, 4, 5, 6, 9, 10]); }
 function abaMotoristas() { return aba(ABA_M, ['Código', 'Nome', 'Tarifa'], [1]); }
 function abaAjustes() { return aba(ABA_A, ['Chave', 'Valor'], [1, 2]); }
-function abaPagamentos() { return aba(ABA_P, COL_P, [1, 2, 4, 5, 8]); }
+function abaPagamentos() { return aba(ABA_P, COL_P, TEXTO_P); }
 
 function linhas(s) {
   var v = s.getDataRange().getValues();
@@ -144,9 +150,39 @@ function pagamentos() {
       id: String(l[0]), motorista: String(l[1]), nome: String(l[2]),
       de: comoData(l[3]), ate: comoData(l[4]),
       qtd: Number(l[5]) || 0, valor: Number(l[6]) || 0,
-      pagoEm: comoEnvio(l[7]), obs: String(l[8] || '')
+      pagoEm: comoEnvio(l[7]), obs: String(l[8] || ''),
+      e2e: String(l[9] || ''), comprovante: String(l[10] || '')
     };
   });
+}
+
+/** E2E do PIX: "E" + 31 letras ou números (ISPB, data/hora e sequencial). Espaços são ignorados. */
+function normalizarE2E(v) {
+  var e = String(v || '').replace(/\s+/g, '');
+  return /^E[0-9A-Za-z]{31}$/.test(e) ? e : '';
+}
+
+var TIPOS_COMPROVANTE = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg' };
+var LIMITE_COMPROVANTE = 5 * 1024 * 1024;
+
+/** Pasta privada dos comprovantes, criada na primeira vez e lembrada na aba Ajustes. */
+function pastaComprovantes() {
+  var id = ajuste('pasta_comprovantes');
+  if (id) {
+    try {
+      var f = DriveApp.getFolderById(id);
+      if (!f.isTrashed()) return f;
+    } catch (err) { /* pasta apagada: cria outra */ }
+  }
+  var nova = DriveApp.createFolder('Comprovantes PIX · Viagens Couve Flor');
+  gravarAjuste('pasta_comprovantes', nova.getId());
+  return nova;
+}
+
+/** Manda o arquivo para a lixeira do Drive (recuperável por 30 dias). Falha não interrompe. */
+function descartarComprovante(id) {
+  if (!id) return;
+  try { DriveApp.getFileById(id).setTrashed(true); } catch (err) { /* já não existe */ }
 }
 
 function novoCodigo(prefixo) {
@@ -177,7 +213,9 @@ function processar(p) {
 
     var todas = viagens().filter(function (v) { return v.motorista === m.id; });
     var abertas = todas.filter(function (v) { return !v.pagamento; });
-    var meus = pagamentos().filter(function (x) { return x.motorista === m.id; });
+    // o motorista recebe o E2E, nunca o identificador do arquivo no Drive
+    var meus = pagamentos().filter(function (x) { return x.motorista === m.id; })
+      .map(function (x) { x.comprovante = ''; return x; });
 
     return {
       ok: true, nome: m.nome, tarifa: m.tarifa, hoje: hojeBR(),
@@ -240,7 +278,7 @@ function processar(p) {
   }
 
   var protegida = ['gestor', 'add_motorista', 'edit_motorista', 'rm_motorista', 'cancelar_g',
-       'fechar_pagamento', 'desfazer_pagamento'].indexOf(acao) >= 0;
+       'fechar_pagamento', 'desfazer_pagamento', 'anexar_comprovante'].indexOf(acao) >= 0;
 
   if (protegida && p._metodo === 'GET') return { ok: false, erro: 'Ação não permitida por este método.' };
 
@@ -266,9 +304,15 @@ function processar(p) {
     var alvo = acharMotorista(p.motorista);
     if (!alvo) return { ok: false, erro: 'Motorista não encontrado.' };
     var ate = String(p.ate || hojeISO());
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ate)) return { ok: false, erro: 'Data de fechamento inválida.' };
+    var e2e = normalizarE2E(p.e2e);
+    if (!e2e) return { ok: false, erro: 'Informe o código E2E do PIX (começa com E e tem 32 caracteres).' };
 
     var trava2 = travar();
     try {
+      var repetido = pagamentos().filter(function (x) { return x.e2e === e2e; })[0];
+      if (repetido) return { ok: false, erro: 'Esse E2E já está no pagamento de ' + repetido.nome + ' (' + repetido.pagoEm + ').' };
+
       var sv = abaViagens(), dados = sv.getDataRange().getValues();
       var indices = [], soma = 0, datas = [];
       for (var j = 1; j < dados.length; j++) {
@@ -287,10 +331,10 @@ function processar(p) {
       abaPagamentos().appendRow([
         idPag, alvo.id, alvo.nome, datas[0], datas[datas.length - 1],
         indices.length, soma, Utilities.formatDate(new Date(), FUSO, 'dd/MM/yyyy HH:mm'),
-        String(p.obs || '')
+        String(p.obs || ''), e2e, ''
       ]);
       SpreadsheetApp.flush();
-      return { ok: true, qtd: indices.length, valor: soma, de: datas[0], ate: datas[datas.length - 1] };
+      return { ok: true, id: idPag, qtd: indices.length, valor: soma, de: datas[0], ate: datas[datas.length - 1] };
     } finally { trava2.releaseLock(); }
   }
 
@@ -303,11 +347,43 @@ function processar(p) {
       }
       var sp = abaPagamentos(), d3 = sp.getDataRange().getValues();
       for (var y = 1; y < d3.length; y++) {
-        if (String(d3[y][0]) === String(p.id)) { sp.deleteRow(y + 1); break; }
+        if (String(d3[y][0]) === String(p.id)) {
+          descartarComprovante(String(d3[y][10] || ''));
+          sp.deleteRow(y + 1);
+          break;
+        }
       }
       SpreadsheetApp.flush();
       return { ok: true };
     } finally { trava3.releaseLock(); }
+  }
+
+  /* Chega depois do fechamento, em chamada própria: se o envio falhar, o pagamento
+     já está fechado e o gestor anexa de novo pelo histórico. */
+  if (acao === 'anexar_comprovante') {
+    var ext = TIPOS_COMPROVANTE[String(p.tipo || '')];
+    if (!ext) return { ok: false, erro: 'O comprovante precisa ser PDF ou imagem.' };
+    var bytes;
+    try { bytes = Utilities.base64Decode(String(p.dados || '')); }
+    catch (err) { return { ok: false, erro: 'Arquivo corrompido no envio. Tente de novo.' }; }
+    if (!bytes.length) return { ok: false, erro: 'Arquivo vazio.' };
+    if (bytes.length > LIMITE_COMPROVANTE) return { ok: false, erro: 'Arquivo maior que 5 MB.' };
+
+    var trava4 = travar();
+    try {
+      var sp2 = abaPagamentos(), d4 = sp2.getDataRange().getValues();
+      for (var z = 1; z < d4.length; z++) {
+        if (String(d4[z][0]) !== String(p.id)) continue;
+        var pg = { motorista: String(d4[z][2]), ate: comoData(d4[z][4]) };
+        var nomeArq = pg.ate + ' ' + pg.motorista + ' ' + p.id + '.' + ext;
+        var arq = pastaComprovantes().createFile(Utilities.newBlob(bytes, String(p.tipo), nomeArq));
+        descartarComprovante(String(d4[z][10] || '')); // trocar o comprovante não deixa o antigo solto
+        sp2.getRange(z + 1, 11).setNumberFormat('@').setValue(arq.getId());
+        SpreadsheetApp.flush();
+        return { ok: true, comprovante: arq.getId() };
+      }
+      return { ok: false, erro: 'Pagamento não encontrado.' };
+    } finally { trava4.releaseLock(); }
   }
 
   if (acao === 'add_motorista') {
@@ -397,5 +473,5 @@ function preparar() {
   formatarTexto(abaViagens(), [1, 2, 4, 5, 6, 9, 10]);
   formatarTexto(abaMotoristas(), [1]);
   formatarTexto(abaAjustes(), [1, 2]);
-  formatarTexto(abaPagamentos(), [1, 2, 4, 5, 8]);
+  formatarTexto(abaPagamentos(), TEXTO_P);
 }

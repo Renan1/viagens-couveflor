@@ -58,18 +58,20 @@
       font-size:12px;overflow-x:auto;color:#B9CDD8;max-height:170px;margin:0 0 20px}
   .selo{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:3px;font-size:11px;
         background:#123A33;border:1px solid #2B6558;color:var(--volta)}
+  .codigo{display:block;font-size:11px;color:var(--apagado);overflow-wrap:anywhere;user-select:all;margin-top:2px}
   .rodape{margin-top:32px;font-size:11px;color:var(--apagado);text-align:center}
 </style>
 </head>
 <body>
 <div id="app"></div>
+<input type="file" id="arquivo" accept="application/pdf,image/*" hidden>
 
 <script>
 /* ————— endereço /exec do aplicativo web do Apps Script ————— */
 const API = "https://script.google.com/macros/s/AKfycbyb3mIEaspqZPGhbWofnaqfZ7YwMV9URH0usuFylEIY7AFe8BKq2jlzzfMqZDyrpM4M/exec";
 /* ————————————————————————————————————————————————————————— */
 
-const VERSAO = "4.1";
+const VERSAO = "5.0";
 
 const TIPOS = {
   ida:   {sigla:"IDA",   rotulo:"Levar equipe",  sub:"casa → empresa", cor:"var(--ida)"},
@@ -99,6 +101,9 @@ function mover(mes,passo){
   return d.getFullYear()+"-"+pad(d.getMonth()+1);
 }
 const soma = l => l.reduce((s,v)=>s+Number(v.valor||0),0);
+// E2E do PIX: "E" + 31 letras ou números. Colado do app do banco às vezes vem com espaços.
+const normalizarE2E = v => { const e = String(v||"").replace(/\s+/g,""); return /^E[0-9A-Za-z]{31}$/.test(e) ? e : ""; };
+const linkComprovante = id => "https://drive.google.com/file/d/" + encodeURIComponent(id) + "/view";
 
 /* O atalho na tela inicial abre sem o "?m=", porque o Chrome usa o start_url do
    manifesto. Por isso o código do motorista fica guardado no próprio aparelho. */
@@ -145,20 +150,23 @@ const E = {
 /* ————— comunicação: tudo por GET, com tempo limite e novas tentativas ————— */
 const espera = ms => new Promise(r => setTimeout(r, ms));
 
-async function chamar(params, tentativas, aoTentar){
+async function chamar(params, tentativas, aoTentar, limite){
   tentativas = tentativas || 3;
+  // ações com PIN vão por POST (o servidor recusa gestor por GET) e o PIN não fica na URL;
+  // text/plain evita o preflight de CORS que o Apps Script não responde
+  const porPost = "pin" in params;
   const u = new URL(API);
-  Object.keys(params).forEach(k => { if(params[k]!=null && params[k]!=="") u.searchParams.set(k, params[k]); });
-  u.searchParams.set("_", Date.now());
+  if(!porPost){
+    Object.keys(params).forEach(k => { if(params[k]!=null && params[k]!=="") u.searchParams.set(k, params[k]); });
+    u.searchParams.set("_", Date.now());
+  }
   let ultimo;
   for(let i = 0; i < tentativas; i++){
     if(aoTentar) aoTentar(i + 1, tentativas);
     const ctrl = new AbortController();
-    const relogio = setTimeout(() => ctrl.abort(), 15000);
+    const relogio = setTimeout(() => ctrl.abort(), limite || 15000);
     try{
-      // ações com PIN vão por POST (o servidor recusa gestor por GET) e o PIN não fica na URL;
-      // text/plain evita o preflight de CORS que o Apps Script não responde
-      const r = ("pin" in params)
+      const r = porPost
         ? await fetch(API, {method:"POST", body:JSON.stringify(params), headers:{"Content-Type":"text/plain"}, redirect:"follow", cache:"no-store", signal:ctrl.signal})
         : await fetch(u.toString(), {method:"GET", redirect:"follow", cache:"no-store", signal:ctrl.signal});
       const texto = await r.text();
@@ -310,7 +318,8 @@ function telaMotorista(){
     h += '<p class="dia" style="margin-top:22px">Pagamentos recebidos</p>';
     for(const p of pgs.slice(0,6)){
       h += '<div class="viagem"><span style="flex:1;font-size:14px">'+curto(p.de)+' a '+curto(p.ate)+
-           ' · '+p.qtd+(p.qtd===1?" viagem":" viagens")+'</span>'+
+           ' · '+p.qtd+(p.qtd===1?" viagem":" viagens")+
+           (p.e2e?'<span class="codigo">PIX '+esc(p.e2e)+'</span>':'')+'</span>'+
            '<span class="valor" style="color:var(--volta)">'+moeda(p.valor)+'</span></div>';
     }
   }
@@ -399,7 +408,15 @@ function telaGestor(){
         '<input type="date" id="fAte" class="campo" value="'+E.fechando.ate+'" data-acao="nada">'+
         '<p style="font-size:14px;margin:10px 0 0">Entram <strong>'+entram.length+'</strong> '+
           (entram.length===1?"viagem":"viagens")+' · <strong>'+moeda(soma(entram))+'</strong></p>'+
-        '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">'+
+        '<p style="font-size:13px;color:var(--fraco);margin:14px 0 6px">Código E2E do PIX (no comprovante do banco):</p>'+
+        '<input id="fE2E" class="campo" autocomplete="off" autocapitalize="characters" spellcheck="false" '+
+          'placeholder="E00000000202610021200..." style="width:100%;font-size:13px" value="'+esc(E.fechando.e2e||"")+'">'+
+        '<p style="font-size:13px;color:var(--fraco);margin:14px 0 6px">Comprovante (PDF ou foto, opcional):</p>'+
+        (E.fechando.arquivo
+          ? '<span style="font-size:14px;overflow-wrap:anywhere">'+esc(E.fechando.arquivo.name)+'</span> '+
+            '<button class="link" data-acao="tirarArquivo">tirar</button>'
+          : '<button class="acao mini" data-acao="escolherArquivo" data-para="fechamento">escolher arquivo</button>')+
+        '<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">'+
           '<button class="acao" data-acao="confirmarFechamento" data-id="'+m.id+'">Confirmar pagamento</button>'+
           '<button class="link" data-acao="cancelarFechamento">cancelar</button></div>'+
         '<p style="font-size:12px;color:var(--apagado);margin:12px 0 0;line-height:1.5">'+
@@ -415,7 +432,13 @@ function telaGestor(){
     h += '<div class="viagem">'+
       '<span style="flex:1;font-size:14px">'+esc(p.nome)+
         '<br><span style="font-size:12px;color:var(--apagado)">'+curto(p.de)+' a '+curto(p.ate)+' · '+
-        p.qtd+(p.qtd===1?" viagem":" viagens")+' · pago em '+esc(String(p.pagoEm).split(" ")[0])+'</span></span>'+
+        p.qtd+(p.qtd===1?" viagem":" viagens")+' · pago em '+esc(String(p.pagoEm).split(" ")[0])+'</span>'+
+        (p.e2e?'<span class="codigo">PIX '+esc(p.e2e)+'</span>':'')+
+        '<span style="display:block;margin-top:4px">'+
+          (p.comprovante
+            ? '<a class="link" style="color:var(--volta)" href="'+esc(linkComprovante(p.comprovante))+'" target="_blank" rel="noopener">ver comprovante</a>'
+            : '<button class="link" style="color:var(--ida)" data-acao="escolherArquivo" data-para="'+esc(p.id)+'">anexar comprovante</button>')+
+        '</span></span>'+
       '<span class="valor" style="color:var(--volta)">'+moeda(p.valor)+'</span>'+
       '<button class="acao mini" data-acao="desfazerPagamento" data-id="'+esc(p.id)+'">desfazer</button></div>';
   }
@@ -521,20 +544,37 @@ const ACOES = {
   async confirmarFechamento(b){
     const campo = document.getElementById("fAte");
     const ate = campo && campo.value ? campo.value : (E.dados.hojeISO || hojeISO());
+    const e2e = normalizarE2E(E.fechando.e2e);
+    if(!e2e){ E.aviso = "Cole o código E2E do PIX: começa com E e tem 32 caracteres."; E.avisoBom = false; return pintar(); }
     if(!confirm("Confirmar o pagamento das viagens até "+curto(ate)+"?")) return;
+    const arquivo = E.fechando.arquivo;
     E.ocupado = true; E.aviso = "Fechando pagamento…"; E.avisoBom = true; pintar();
-    try{
-      const r = await chamar({acao:"fechar_pagamento", pin:E.pin, motorista:b.dataset.id, ate:ate}, 2);
-      if(r.ok){
-        E.fechando = null;
-        E.aviso = "Pagamento fechado: "+r.qtd+(r.qtd===1?" viagem, ":" viagens, ")+moeda(r.valor)+".";
-        E.avisoBom = true;
-        await carregar();
-      } else { E.aviso = r.erro; E.avisoBom = false; E.ocupado = false; pintar(); }
-    } catch(e){ E.aviso = "Não deu para fechar agora: "+e.message; E.avisoBom = false; E.ocupado = false; pintar(); }
+    let r;
+    try{ r = await chamar({acao:"fechar_pagamento", pin:E.pin, motorista:b.dataset.id, ate:ate, e2e:e2e}, 2); }
+    catch(e){ E.aviso = "Não deu para fechar agora: "+e.message; E.avisoBom = false; E.ocupado = false; return pintar(); }
+    if(!r.ok){ E.aviso = r.erro; E.avisoBom = false; E.ocupado = false; return pintar(); }
+    // servidor da versão 4 ignora o E2E e não devolve o id: avisar em vez de perder o dado calado
+    if(!r.id){ E.fechando = null; E.aviso = "Pagamento fechado, mas o servidor está desatualizado e não guardou o E2E. Publique o Code.gs versão 5."; E.avisoBom = false; return carregar(); }
+
+    E.fechando = null;
+    let recado = "Pagamento fechado: "+r.qtd+(r.qtd===1?" viagem, ":" viagens, ")+moeda(r.valor)+".";
+    // o comprovante sobe depois e nunca desfaz o fechamento: se falhar, anexa pelo histórico
+    if(arquivo){
+      E.aviso = recado + " Enviando comprovante…"; pintar();
+      const falha = await anexar(r.id, arquivo);
+      recado += falha ? " O comprovante não subiu ("+falha+"). Use “anexar comprovante” no histórico." : " Comprovante guardado.";
+    }
+    E.aviso = recado; E.avisoBom = true;
+    await carregar();
   },
+  escolherArquivo(b){
+    E.anexandoPara = b.dataset.para;
+    const campo = document.getElementById("arquivo");
+    campo.value = ""; campo.click();
+  },
+  tirarArquivo(){ if(E.fechando) E.fechando.arquivo = null; pintar(); },
   async desfazerPagamento(b){
-    if(!confirm("Desfazer este pagamento? As viagens voltam para o 'a pagar'.")) return;
+    if(!confirm("Desfazer este pagamento? As viagens voltam para o 'a pagar' e o comprovante, se houver, vai para a lixeira do Drive.")) return;
     E.ocupado = true; E.aviso = "Desfazendo…"; E.avisoBom = true; pintar();
     try{
       const r = await chamar({acao:"desfazer_pagamento", pin:E.pin, id:b.dataset.id}, 2);
@@ -593,9 +633,10 @@ const ACOES = {
   },
   csvPagamentos(){
     const pgs = (E.dados.pagamentos||[]).slice().sort((a,b)=>String(a.ate).localeCompare(String(b.ate)));
-    const linhas = ["motorista;periodo_de;periodo_ate;viagens;valor;pago_em;observacao"].concat(pgs.map(p => {
+    // e2e vai no fim para não deslocar as colunas que o dashboard já lê
+    const linhas = ["motorista;periodo_de;periodo_ate;viagens;valor;pago_em;observacao;e2e"].concat(pgs.map(p => {
       return [p.nome, curto(p.de)+"/"+String(p.de).slice(0,4), curto(p.ate)+"/"+String(p.ate).slice(0,4),
-              p.qtd, Number(p.valor).toFixed(2).replace(".",","), p.pagoEm, p.obs].map(celula).join(";");
+              p.qtd, Number(p.valor).toFixed(2).replace(".",","), p.pagoEm, p.obs, p.e2e].map(celula).join(";");
     }));
     copiarCsv(linhas.join("\n"), "Pagamentos copiados — é o que vai para o dashboard financeiro.");
   },
@@ -635,6 +676,60 @@ function copiarCsv(texto, recado){
   E.aviso = recado + " Cole no Excel e separe por ponto e vírgula.";
   E.avisoBom = true;
   pintar();
+}
+
+/* ————— comprovante ————— */
+const LIMITE_PDF = 5 * 1024 * 1024;
+
+const lerBase64 = blob => new Promise((ok, falhou) => {
+  const r = new FileReader();
+  r.onload = () => ok(String(r.result).split(",")[1] || "");
+  r.onerror = () => falhou(new Error("não deu para ler o arquivo"));
+  r.readAsDataURL(blob);
+});
+
+/* Foto de celular tem 2–4 MB: vira JPEG de até 1600 px (~300 KB) antes de sair do aparelho.
+   Print de tela em PNG também passa por aqui. */
+async function reduzirImagem(arquivo){
+  let img;
+  try { img = await createImageBitmap(arquivo); }
+  catch(e){ throw new Error("este formato de imagem não abre no navegador; envie JPG, PNG ou PDF"); }
+  const escala = Math.min(1, 1600 / Math.max(img.width, img.height));
+  const c = document.createElement("canvas");
+  c.width = Math.round(img.width * escala); c.height = Math.round(img.height * escala);
+  const g = c.getContext("2d");
+  g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); // PNG transparente não vira fundo preto
+  g.drawImage(img, 0, 0, c.width, c.height);
+  return new Promise((ok, falhou) => c.toBlob(b => b ? ok(b) : falhou(new Error("não deu para converter a imagem")), "image/jpeg", 0.82));
+}
+
+/** Envia o comprovante de um pagamento já fechado. Devolve null se deu certo, ou o motivo da falha. */
+async function anexar(idPagamento, arquivo){
+  try{
+    let blob = arquivo, tipo = arquivo.type;
+    if(tipo === "application/pdf"){
+      if(arquivo.size > LIMITE_PDF) return "PDF maior que 5 MB";
+    } else if(/^image\//.test(tipo)){
+      blob = await reduzirImagem(arquivo); tipo = "image/jpeg";
+    } else return "o arquivo precisa ser PDF ou imagem";
+    const dados = await lerBase64(blob);
+    const r = await chamar({acao:"anexar_comprovante", pin:E.pin, id:idPagamento, tipo:tipo, dados:dados}, 2, null, 60000);
+    return r.ok ? null : r.erro;
+  } catch(e){ return e.message; }
+}
+
+async function arquivoEscolhido(arquivo){
+  const para = E.anexandoPara; E.anexandoPara = null;
+  if(!arquivo || !para) return;
+  if(para === "fechamento"){
+    if(E.fechando) E.fechando.arquivo = arquivo;
+    return pintar();
+  }
+  E.ocupado = true; E.aviso = "Enviando comprovante…"; E.avisoBom = true; pintar();
+  const falha = await anexar(para, arquivo);
+  E.aviso = falha ? "O comprovante não subiu: " + falha : "Comprovante guardado.";
+  E.avisoBom = !falha;
+  await carregar();
 }
 
 async function registrar(tipo, valor, descricao){
@@ -678,6 +773,12 @@ document.getElementById("app").addEventListener("click", ev => {
 document.getElementById("app").addEventListener("change", ev => {
   if(ev.target.id === "fAte" && E.fechando){ E.fechando.ate = ev.target.value; pintar(); }
 });
+// a tela é redesenhada inteira a cada mudança: o E2E digitado precisa morar no estado
+document.getElementById("app").addEventListener("input", ev => {
+  if(ev.target.id === "fE2E" && E.fechando) E.fechando.e2e = ev.target.value;
+});
+// fica fora do #app para não ser apagado quando a tela é redesenhada
+document.getElementById("arquivo").addEventListener("change", ev => arquivoEscolhido(ev.target.files[0]));
 window.addEventListener("online", () => esvaziarFila().then(m => { if(m) carregar(); }));
 setInterval(() => { if(!E.carimbo.manual && !E.ocupado){ E.carimbo.data = hojeISO(); E.carimbo.hora = agoraHM(); } }, 20000);
 
