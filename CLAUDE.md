@@ -113,27 +113,29 @@ PIN, tipo restrito a PDF/JPEG, limite de 5 MB.
 
 ## Estado em 2026-10-02
 
-- **No ar:** `index.html` 4.1 + `Code.gs` 4 (ping: 2 motoristas, 67 viagens).
-- **Branch `comprovante-pix`:** `index.html` 5.0 + `Code.gs` 5 — E2E obrigatório no
-  fechamento, comprovante opcional (PDF ou foto reduzida no aparelho para JPEG de até
-  1600 px), enviado depois do fechamento (falha no envio não desfaz o pagamento;
-  "anexar comprovante" no histórico permite reenviar ou anexar em pagamentos antigos),
-  "ver comprovante" abre no Drive do dono, CSV de pagamentos com coluna `e2e` no fim.
-  Testado no navegador com respostas simuladas; **ainda não testado contra o Google**.
+- **No ar:** `index.html` 5.0 + `Code.gs` 5 (ping: 2 motoristas, 67 viagens). Drive
+  autorizado; primeiro comprovante anexado com sucesso (pagamento fechado ainda na 4.1,
+  sem E2E).
+- **Versão 5:** E2E obrigatório no fechamento, comprovante opcional (PDF ou foto
+  reduzida no aparelho para JPEG de até 1600 px), enviado depois do fechamento (falha
+  no envio não desfaz o pagamento; "anexar comprovante" no histórico permite reenviar
+  ou anexar em pagamentos antigos), "ver comprovante" abre no Drive do dono, CSV de
+  pagamentos com coluna `e2e` no fim.
 
-### Para publicar a versão 5 — a ordem importa
+### Ao publicar uma versão nova do `Code.gs` — a ordem importa
 
-1. Colar o `Code.gs` do branch no editor do Apps Script.
-2. Implantar → Gerenciar implantações → lápis → **Nova versão**. O Google pede
-   autorização para acessar o Drive (só o dono aprova).
-3. Conferir com `?acao=ping` que responde `"versao":5`.
-4. Só então juntar `comprovante-pix` ao `main`.
-
-Se o site 5.0 for publicado antes, o app avisa que o servidor não guardou o E2E.
+1. Colar o `Code.gs` no editor do Apps Script e salvar.
+2. Implantar → Gerenciar implantações → lápis → **Nova versão**.
+   **Implantar não pede autorização nova.** Se o código passar a usar outro serviço
+   do Google (ex.: Drive), rodar pelo editor uma função que o use (no caso do Drive,
+   `pastaComprovantes`) e aprovar — senão a chamada falha com "sem permissão".
+   A troca de versão pode levar alguns minutos para o `ping` refletir.
+3. Conferir com `?acao=ping` a versão nova.
+4. Só então juntar o branch do site ao `main`.
 
 ## Pendências
 
-1. **Publicar a versão 5** (acima) e acompanhar o primeiro fechamento real.
+1. **Acompanhar o primeiro fechamento real com E2E** na versão 5.
 2. **PIN do gestor salvo no navegador sem expiração** e **sem botão de sair no painel
    do gestor** — vindos da auditoria. Proposta: botão "sair" + expiração de 30 dias.
    PIN continua com 4 dígitos (decidido).
