@@ -137,8 +137,19 @@ PIN, tipo restrito a PDF/JPEG, limite de 5 MB.
 
 1. **Acompanhar o primeiro fechamento real com E2E** na versão 5.
 2. **PIN do gestor salvo no navegador sem expiração** e **sem botão de sair no painel
-   do gestor** — vindos da auditoria. Proposta: botão "sair" + expiração de 30 dias.
-   PIN continua com 4 dígitos (decidido).
+   do gestor** — vindos da auditoria. PIN continua com 4 dígitos (decidido).
+   **Aprovado pelo dono em 2026-10-02, falta implementar** (branch `sair-gestor`,
+   versão 5.1, só `index.html`):
+   - Botão "Sair do painel" no fim de `telaGestor()`: confirma e apaga `cf_pin` e
+     todas as chaves `cf_cache_gestor_*`. Não toca em `cf_fila` nem `cf_motorista`.
+   - Expiração de **30 dias fixos a partir de quando o PIN foi digitado** (não renova
+     com o uso). Guardar o prazo em `cf_pin_ate` só em `entrar()`/`criarPin()`; vencido,
+     apagar PIN e caches do gestor e pedir o PIN de novo.
+   - Quem já tem `cf_pin` sem `cf_pin_ate`: começa a contar 30 dias na primeira
+     abertura da 5.1 (ninguém é deslogado de surpresa).
+   - Achado junto: o cache `cf_cache_gestor_<mês>` guarda dados do gestor no aparelho
+     mesmo sem PIN — por isso o "sair" e a expiração limpam esse cache.
+   Testar com `fetch` simulado antes de juntar ao `main`.
 3. **`clasp`** para versionar e implantar o `Code.gs` por comando, sempre na implantação
    existente (para a URL `/exec` não mudar). `clasp login` é feito pelo dono.
 4. **Dashboard** — decidir se o `couveflor-dashboard` (privado) lê a planilha direto
