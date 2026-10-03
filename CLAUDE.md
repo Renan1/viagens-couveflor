@@ -111,9 +111,15 @@ PIN com bloqueio de 15 minutos após 5 erros; escape de HTML em tudo que vem da 
 (`esc`, `curto`); proteção contra fórmula no CSV (`celula`); comprovante só via POST com
 PIN, tipo restrito a PDF/JPEG, limite de 5 MB.
 
+**PIN do gestor no aparelho (5.1):** vale 30 dias fixos a partir de quando foi digitado
+(`cf_pin_ate`; abrir o app não renova). Vencido ou no botão "Sair do painel", o app
+apaga `cf_pin`, `cf_pin_ate` e as cópias `cf_cache_gestor_*` — que guardam dados do
+gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes da 5.1
+(sem prazo) começa a contar na primeira abertura da 5.1.
+
 ## Estado em 2026-10-02
 
-- **No ar:** `index.html` 5.0 + `Code.gs` 5 (ping: 2 motoristas, 67 viagens). Drive
+- **No ar:** `index.html` 5.1 + `Code.gs` 5 (ping: 2 motoristas, 67 viagens). Drive
   autorizado; primeiro comprovante anexado com sucesso (pagamento fechado ainda na 4.1,
   sem E2E).
 - **Versão 5:** E2E obrigatório no fechamento, comprovante opcional (PDF ou foto
@@ -136,23 +142,9 @@ PIN, tipo restrito a PDF/JPEG, limite de 5 MB.
 ## Pendências
 
 1. **Acompanhar o primeiro fechamento real com E2E** na versão 5.
-2. **PIN do gestor salvo no navegador sem expiração** e **sem botão de sair no painel
-   do gestor** — vindos da auditoria. PIN continua com 4 dígitos (decidido).
-   **Aprovado pelo dono em 2026-10-02, falta implementar** (branch `sair-gestor`,
-   versão 5.1, só `index.html`):
-   - Botão "Sair do painel" no fim de `telaGestor()`: confirma e apaga `cf_pin` e
-     todas as chaves `cf_cache_gestor_*`. Não toca em `cf_fila` nem `cf_motorista`.
-   - Expiração de **30 dias fixos a partir de quando o PIN foi digitado** (não renova
-     com o uso). Guardar o prazo em `cf_pin_ate` só em `entrar()`/`criarPin()`; vencido,
-     apagar PIN e caches do gestor e pedir o PIN de novo.
-   - Quem já tem `cf_pin` sem `cf_pin_ate`: começa a contar 30 dias na primeira
-     abertura da 5.1 (ninguém é deslogado de surpresa).
-   - Achado junto: o cache `cf_cache_gestor_<mês>` guarda dados do gestor no aparelho
-     mesmo sem PIN — por isso o "sair" e a expiração limpam esse cache.
-   Testar com `fetch` simulado antes de juntar ao `main`.
-3. **`clasp`** para versionar e implantar o `Code.gs` por comando, sempre na implantação
+2. **`clasp`** para versionar e implantar o `Code.gs` por comando, sempre na implantação
    existente (para a URL `/exec` não mudar). `clasp login` é feito pelo dono.
-4. **Dashboard** — decidir se o `couveflor-dashboard` (privado) lê a planilha direto
+3. **Dashboard** — decidir se o `couveflor-dashboard` (privado) lê a planilha direto
    ou continua recebendo o CSV copiado.
 
 ### Decidido e descartado

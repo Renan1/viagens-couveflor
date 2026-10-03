@@ -71,7 +71,7 @@
 const API = "https://script.google.com/macros/s/AKfycbyb3mIEaspqZPGhbWofnaqfZ7YwMV9URH0usuFylEIY7AFe8BKq2jlzzfMqZDyrpM4M/exec";
 /* ————————————————————————————————————————————————————————— */
 
-const VERSAO = "5.0";
+const VERSAO = "5.1";
 
 const TIPOS = {
   ida:   {sigla:"IDA",   rotulo:"Levar equipe",  sub:"casa → empresa", cor:"var(--ida)"},
@@ -125,6 +125,28 @@ if(new URLSearchParams(location.search).get("sair")){
   try { localStorage.removeItem("cf_motorista"); } catch(e){}
   location.replace(location.pathname);
 }
+
+// PIN do gestor vale 30 dias a partir de quando foi digitado (não renova com o uso).
+// Sair ou vencer apaga o PIN e as cópias dos dados do gestor deste aparelho.
+const PRAZO_PIN = 30 * 864e5;
+function esquecerGestor(){
+  try {
+    Object.keys(localStorage)
+      .filter(k => k === "cf_pin" || k === "cf_pin_ate" || k.indexOf("cf_cache_gestor_") === 0)
+      .forEach(k => localStorage.removeItem(k));
+  } catch(e){}
+}
+function guardarPin(p){
+  try { localStorage.setItem("cf_pin", p); localStorage.setItem("cf_pin_ate", String(Date.now() + PRAZO_PIN)); } catch(e){}
+}
+(function vencerPin(){
+  try {
+    if(!localStorage.getItem("cf_pin")) return;
+    const ate = Number(localStorage.getItem("cf_pin_ate"));
+    if(!ate) localStorage.setItem("cf_pin_ate", String(Date.now() + PRAZO_PIN)); // PIN de antes da 5.1
+    else if(Date.now() > ate) esquecerGestor();
+  } catch(e){}
+})();
 
 const E = {
   token: tokenDoAparelho(),
@@ -224,7 +246,11 @@ async function carregar(){
     } else if(E.liberado || E.pin){
       const r = await chamar({acao:"gestor", pin:E.pin, mes:E.mes}, 3, mostrarTentativa);
       if(r.semPin){ E.semPin = true; E.liberado = false; }
-      else if(r.ok){ E.dados = r; E.liberado = true; guardarCache(r); localStorage.setItem("cf_pin", E.pin); }
+      else if(r.ok){
+        E.dados = r; E.liberado = true; guardarCache(r);
+        // só um PIN recém-digitado ganha prazo novo; abrir o app de novo não renova
+        if(localStorage.getItem("cf_pin") !== E.pin) guardarPin(E.pin);
+      }
       else { E.liberado = false; E.aviso = r.erro; E.avisoBom = false; }
     }
   } catch(err){
@@ -469,6 +495,7 @@ function telaGestor(){
 
   h += '<p class="dia" style="font-size:20px;margin-bottom:8px">Viagens de '+rotuloMes(E.mes)+'</p>';
   h += listar(vs, {nome:true, cancelar:"cancelarG"});
+  h += '<p style="margin-top:26px"><button class="acao" data-acao="sairGestor">Sair do painel</button></p>';
   return h;
 }
 
@@ -589,6 +616,12 @@ const ACOES = {
     location.href = location.origin + location.pathname;
   },
 
+  sairGestor(){
+    if(!confirm("Sair do painel do gestor neste aparelho? O PIN será pedido de novo.")) return;
+    esquecerGestor();
+    location.href = location.origin + location.pathname;
+  },
+
   souMotorista(){ E.papel = "motorista"; pintar(); },
   souGestor(){ E.papel = "gestor"; pintar(); },
   voltarEscolha(){ E.papel = null; E.diagnostico = null; pintar(); },
@@ -597,7 +630,7 @@ const ACOES = {
     const p = (document.getElementById("pin")||{}).value || "";
     if(!/^\d{4}$/.test(p)){ E.aviso = "O PIN precisa ter 4 dígitos."; E.avisoBom = false; return pintar(); }
     chamar({acao:"definir_pin", pin:p}).then(r => {
-      if(r.ok){ E.pin = p; E.semPin = false; E.liberado = true; localStorage.setItem("cf_pin", p); carregar(); }
+      if(r.ok){ E.pin = p; E.semPin = false; E.liberado = true; guardarPin(p); carregar(); }
       else { E.aviso = r.erro; E.avisoBom = false; pintar(); }
     }).catch(e => { E.aviso = e.message; E.avisoBom = false; pintar(); });
   },
