@@ -119,7 +119,7 @@ gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes d
 
 ## Estado em 2026-10-02
 
-- **No ar:** `index.html` 5.1 + `Code.gs` 5 (ping: 2 motoristas, 67 viagens). Drive
+- **No ar:** `index.html` 5.2 (com favicon) + `Code.gs` 5 (ping: 2 motoristas, 67 viagens). Drive
   autorizado; primeiro comprovante anexado com sucesso (pagamento fechado ainda na 4.1,
   sem E2E).
 - **Versão 5:** E2E obrigatório no fechamento, comprovante opcional (PDF ou foto
@@ -127,7 +127,7 @@ gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes d
   no envio não desfaz o pagamento; "anexar comprovante" no histórico permite reenviar
   ou anexar em pagamentos antigos), "ver comprovante" abre no Drive do dono, CSV de
   pagamentos com coluna `e2e` no fim.
-- **Branch `leitura-e2e-pdf` (5.2, só `index.html`, sem mudança no `Code.gs`):** ao
+- **Versão 5.2 (no ar desde 2026-10-05, só `index.html`; `Code.gs` segue 5):** ao
   anexar **PDF** no fechamento, o app lê o texto com pdf.js (cdnjs, 3.11.174, carregado
   só nessa hora) e preenche o E2E se o campo estiver vazio; se já houver código
   diferente, avisa sem sobrescrever. Mostra a data/hora do PIX embutida no E2E (UTC→
