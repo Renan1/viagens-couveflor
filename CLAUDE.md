@@ -127,6 +127,12 @@ gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes d
   no envio não desfaz o pagamento; "anexar comprovante" no histórico permite reenviar
   ou anexar em pagamentos antigos), "ver comprovante" abre no Drive do dono, CSV de
   pagamentos com coluna `e2e` no fim.
+- **Branch `leitura-e2e-pdf` (5.2, só `index.html`, sem mudança no `Code.gs`):** ao
+  anexar **PDF** no fechamento, o app lê o texto com pdf.js (cdnjs, 3.11.174, carregado
+  só nessa hora) e preenche o E2E se o campo estiver vazio; se já houver código
+  diferente, avisa sem sobrescrever. Mostra a data/hora do PIX embutida no E2E (UTC→
+  Brasília) e se o valor do fechamento aparece no PDF. **Foto não é lida** (OCR pesado e
+  erra O/0, I/1 no final do código) — decisão do dono. O texto do PDF não sai do aparelho.
 
 ### Ao publicar uma versão nova do `Code.gs` — a ordem importa
 
