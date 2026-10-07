@@ -117,8 +117,14 @@ apaga `cf_pin`, `cf_pin_ate` e as cópias `cf_cache_gestor_*` — que guardam da
 gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes da 5.1
 (sem prazo) começa a contar na primeira abertura da 5.1.
 
-## Estado em 2026-10-02
+## Estado em 2026-10-07
 
+- **Primeiro fechamento real com E2E feito** (Moisés, viagens de setembro, outubro
+  ficou em aberto) — comprovante em **JPG**, então a leitura automática do PDF (5.2)
+  **ainda não foi testada com PDF real de banco**; só com PDF montado no teste.
+- **Lentidão do Apps Script em 2026-10-07:** um `ping` ficou mais de 2 min sem resposta
+  e o seguinte levou 9,5 s. Pode ter sido passageiro; se motoristas reclamarem de
+  demora, começar por aqui (o app desiste de cada tentativa em 15 s, 3 tentativas).
 - **Visual 6.0 (redesign v3, protótipo do dono; inclui a leitura de PDF da 5.2):** tokens de cor `--bg`, `--surf`,
   `--ida` etc. no `:root` (escuro padrão; claro pelo aparelho ou botão de tema, guardado
   em `cf_tema`), fonte do sistema, ícone "carro de frente" (`ICONE` no código e
@@ -128,9 +134,8 @@ gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes d
   dono**; com 4 dígitos entra sozinho (criar PIN ainda pede botão). Ficou de fora do
   protótipo o que não existe nos dados: chave PIX, nome do banco e tamanho do arquivo,
   tarifas diferentes para IDA e VOLTA.
-- **No ar:** `index.html` 6.0 + `Code.gs` 5 (ping: 2 motoristas, 67 viagens). Drive
-  autorizado; primeiro comprovante anexado com sucesso (pagamento fechado ainda na 4.1,
-  sem E2E).
+- **No ar:** `index.html` 6.0 (publicado em 2026-10-06) + `Code.gs` 5 (ping em
+  2026-10-07: 2 motoristas, 92 viagens). Drive autorizado.
 - **Versão 5:** E2E obrigatório no fechamento, comprovante opcional (PDF ou foto
   reduzida no aparelho para JPEG de até 1600 px), enviado depois do fechamento (falha
   no envio não desfaz o pagamento; "anexar comprovante" no histórico permite reenviar
@@ -154,18 +159,47 @@ gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes d
 3. Conferir com `?acao=ping` a versão nova.
 4. Só então juntar o branch do site ao `main`.
 
-## Pendências
+## Pendências (revisadas com o dono em 2026-10-07)
 
-1. **Acompanhar o primeiro fechamento real com E2E** na versão 5.
-2. **`clasp`** para versionar e implantar o `Code.gs` por comando, sempre na implantação
-   existente (para a URL `/exec` não mudar). `clasp login` é feito pelo dono.
-3. **Dashboard** — decidir se o `couveflor-dashboard` (privado) lê a planilha direto
-   ou continua recebendo o CSV copiado.
+### Aprovadas, a fazer
+
+1. **Chave PIX e banco do motorista.** Aprovado. Proposta: aba Motoristas ganha colunas
+   no fim (`Chave PIX`, `Banco`), editadas pelo gestor no cadastro; a folha de
+   fechamento mostra a chave com "copiar" e o banco. Exige `Code.gs` novo (publicação
+   manual, ordem da seção acima). Detalhes a combinar antes de codar: o motorista vê a
+   própria chave? Validar formato da chave ou aceitar texto livre?
+   **Atenção:** o banco **não** sai do E2E — o ISPB embutido no E2E é o do banco de
+   **quem pagou** (sempre o Itaú da Couve Flor). O banco do motorista tem de ser
+   cadastrado junto com a chave.
+2. **Tamanho do arquivo do comprovante.** Aprovado ("se conseguir, pode seguir").
+   Gravar `bytes.length` no `anexar_comprovante` (coluna nova no fim de Pagamentos) e
+   mostrar no detalhe do pagamento. Pagamentos antigos ficam sem tamanho. Vai junto com
+   o item 1, no mesmo `Code.gs`.
+3. **Dashboard financeiro — decidido: arquivo pela pasta `entrada` do dashboard.** O
+   `couveflor-dashboard` desligou a sincronização com Apps Script em 2026-09-28 (pouco
+   confiável e insegura) e hoje recebe dados por arquivos em `entrada/<MÊS>/` no GitHub,
+   processados por workflow. Caminho mais rápido e coerente: o CSV de pagamentos deste
+   app entra por lá. O trabalho principal é **no repositório do dashboard** (o
+   `tools/entrada.py` aprender a ler o CSV de transporte); deste lado, no máximo um
+   botão "baixar CSV" além do "copiar". Não ler a planilha direto.
+4. **Testar a leitura de PDF com comprovante real** no próximo fechamento em que o
+   banco gerar PDF.
+
+### Adiadas pelo dono
+
+- **`clasp`** — o dono prefere publicar o `Code.gs` à mão por enquanto e avisa quando
+  incomodar. Não propor de novo antes disso.
+- **Tarifas diferentes para IDA e VOLTA** — não é assim que trabalham hoje; talvez no
+  futuro. Exigiria mudar a aba Motoristas e o cálculo do valor no `registrar`.
 
 ### Decidido e descartado
 
 - **Recuperação de acesso por código curto** (ex.: `MOI4`): **rejeitada pelo dono.**
   Não propor de novo. Perdeu o link, o gestor reenvia pelo botão "link".
+- **Criar o PIN sem botão** (entrar sozinho ao digitar 4 dígitos, como já é no login):
+  o dono preferiu manter o botão em "Criar PIN".
+- **Ler o E2E de foto (OCR)**: descartado; só PDF é lido.
+- **Teclado numérico desenhado na tela do PIN**: rejeitado; usa o teclado do celular.
 
 ## Como testar localmente
 
