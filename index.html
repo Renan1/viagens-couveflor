@@ -4,62 +4,271 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Viagens · Couve Flor</title>
-<meta name="theme-color" content="#0C1F2B">
+<meta name="theme-color" content="#0B1D2A">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icone-192.png">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
 <style>
+  /* Redesign v3 — tokens de cor. Escuro é o padrão; claro segue o aparelho ou a escolha no botão de tema. */
   :root{
-    --fundo:#0C1F2B; --caixa:#16303F; --borda:#2E4E60; --linha:#1C3646;
-    --texto:#EAF2F6; --fraco:#8FA6C0; --apagado:#5C7A8C;
-    --ida:#FFB020; --volta:#4ED8B0; --extra:#8FA6C0;
-    --cond:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+    --r-sm:8px; --r-md:14px; --r-lg:20px; --r-sheet:26px;
+    --rapido:.18s ease;
+    --bg:#0B1D2A; --surf:#13283A; --surf2:#1B3245; --hover:#223F57;
+    --borda:rgba(255,255,255,.08); --borda-forte:rgba(255,255,255,.16);
+    --texto:#EEF5F9; --muted:#A3B8C6; --subtle:#7C93A3;
+    --ida:#FFC53D; --ida-bg:rgba(255,197,61,.12);
+    --volta:#2DD4BF; --volta-bg:rgba(45,212,191,.12);
+    --extra:#A7BACB; --extra-bg:rgba(167,186,203,.12);
+    --pix:#34D399; --pix-bg:rgba(52,211,153,.12);
+    --perigo:#F87171; --perigo-bg:rgba(248,113,113,.14);
+    --alerta:#F59E0B; --alerta-bg:rgba(245,158,11,.14);
+    --brilho:0 0 24px rgba(45,212,191,.18);
+    --contra:#0B1D2A;
+    color-scheme:dark;
+  }
+  @media (prefers-color-scheme: light){ :root:not([data-tema="escuro"]){
+    --bg:#F2F6F8; --surf:#FFFFFF; --surf2:#F7FAFC; --hover:#EBF1F5;
+    --borda:rgba(10,30,45,.09); --borda-forte:rgba(10,30,45,.18);
+    --texto:#14283A; --muted:#4A6070; --subtle:#7A90A0;
+    --ida:#D98200; --ida-bg:rgba(217,130,0,.1);
+    --volta:#0D9488; --volta-bg:rgba(13,148,136,.1);
+    --extra:#475D72; --extra-bg:rgba(71,93,114,.1);
+    --pix:#059669; --pix-bg:rgba(5,150,105,.1);
+    --perigo:#DC2626; --perigo-bg:rgba(220,38,38,.1);
+    --alerta:#B45309; --alerta-bg:rgba(180,83,9,.1);
+    --brilho:0 0 20px rgba(13,148,136,.15);
+    color-scheme:light;
+  }}
+  :root[data-tema="claro"]{
+    --bg:#F2F6F8; --surf:#FFFFFF; --surf2:#F7FAFC; --hover:#EBF1F5;
+    --borda:rgba(10,30,45,.09); --borda-forte:rgba(10,30,45,.18);
+    --texto:#14283A; --muted:#4A6070; --subtle:#7A90A0;
+    --ida:#D98200; --ida-bg:rgba(217,130,0,.1);
+    --volta:#0D9488; --volta-bg:rgba(13,148,136,.1);
+    --extra:#475D72; --extra-bg:rgba(71,93,114,.1);
+    --pix:#059669; --pix-bg:rgba(5,150,105,.1);
+    --perigo:#DC2626; --perigo-bg:rgba(220,38,38,.1);
+    --alerta:#B45309; --alerta-bg:rgba(180,83,9,.1);
+    --brilho:0 0 20px rgba(13,148,136,.15);
+    color-scheme:light;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--fundo);color:var(--texto);
-       font-family:Inter,system-ui,-apple-system,sans-serif;
-       padding:20px 16px calc(48px + env(safe-area-inset-bottom));
-       -webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--texto);font-family:var(--font);line-height:1.45;
+       padding:14px 18px calc(48px + env(safe-area-inset-bottom));-webkit-text-size-adjust:100%;
+       -webkit-font-smoothing:antialiased}
   #app{max-width:460px;margin:0 auto}
-  button{font-family:inherit;cursor:pointer}
+  button{font-family:inherit;cursor:pointer;color:inherit}
   button:disabled{opacity:.5}
-  button:focus-visible,input:focus-visible{outline:2px solid var(--ida);outline-offset:2px}
-  .topo{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:20px}
-  .marca{font-family:var(--cond);font-size:21px;letter-spacing:.07em;color:var(--fraco)}
-  .caixa{width:100%;background:var(--caixa);border:1px solid var(--borda);border-radius:4px;
-         color:var(--texto);padding:18px 16px;text-align:left;display:block}
-  .acao{background:var(--caixa);border:1px solid var(--borda);color:var(--texto);
-        border-radius:3px;padding:9px 14px;font-size:14px}
-  .mini{padding:3px 9px;font-size:12px;color:var(--fraco)}
-  .link{background:none;border:none;color:var(--fraco);text-decoration:underline;font-size:13px;padding:0}
-  .campo{background:var(--caixa);border:1px solid var(--borda);color:var(--texto);
-         border-radius:3px;padding:9px 10px;font-size:15px;font-family:inherit;max-width:100%}
-  .seta{background:var(--caixa);border:1px solid var(--borda);color:var(--texto);
-        border-radius:3px;width:34px;height:34px;font-size:20px;line-height:1}
-  .botao-viagem{display:flex;align-items:center;gap:16px;padding:22px 20px;margin-bottom:12px}
-  .sigla{font-family:var(--cond);font-size:33px;min-width:82px;letter-spacing:.04em}
-  .rotulo{display:block;font-size:19px;font-weight:600}
-  .sub{display:block;font-size:13px;color:#7F9AAC;margin-top:2px}
-  .viagem{display:flex;align-items:center;gap:10px;padding:11px 2px;border-bottom:1px solid var(--linha)}
-  .hora{font-family:var(--cond);font-size:25px;min-width:56px;font-variant-numeric:tabular-nums}
-  .tipo{font-family:var(--cond);font-size:19px;min-width:58px;letter-spacing:.05em}
-  .meio{flex:1;font-size:13px;color:var(--fraco);overflow-wrap:anywhere}
-  .valor{font-size:13px;color:#7F9AAC;font-variant-numeric:tabular-nums}
-  .dia{font-family:var(--cond);font-size:19px;color:#7F9AAC;margin:0 0 2px}
-  .total{font-family:var(--cond);font-size:60px;line-height:1;margin:0 0 2px;color:var(--ida);
-         font-variant-numeric:tabular-nums}
-  .aviso{border-radius:4px;padding:12px;margin-bottom:16px;font-size:14px;line-height:1.5}
-  .erro{background:#3B2116;border:1px solid #7A4326}
-  .bom{background:#123A33;border:1px solid #2B6558}
-  .navmes{display:flex;align-items:center;gap:10px;margin-bottom:6px}
-  .navmes span{font-family:var(--cond);font-size:23px;letter-spacing:.05em}
-  pre{background:var(--caixa);border:1px solid var(--borda);border-radius:4px;padding:12px;
-      font-size:12px;overflow-x:auto;color:#B9CDD8;max-height:170px;margin:0 0 20px}
-  .selo{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:3px;font-size:11px;
-        background:#123A33;border:1px solid #2B6558;color:var(--volta)}
-  .codigo{display:block;font-size:11px;color:var(--apagado);overflow-wrap:anywhere;user-select:all;margin-top:2px}
-  .rodape{margin-top:32px;font-size:11px;color:var(--apagado);text-align:center}
+  *:focus-visible{outline:2px solid var(--volta);outline-offset:2px}
+  .tab{font-variant-numeric:tabular-nums}
+
+  /* topo */
+  .topo{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+  .icone-app{width:38px;height:38px;border-radius:11px;overflow:hidden;flex-shrink:0;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+  .topo-titulo{flex:1;min-width:0}
+  .topo-titulo b{display:block;font-size:1rem;font-weight:700;line-height:1.2}
+  .topo-titulo span{display:block;font-size:.76rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .btn-tema{background:var(--surf2);border:1px solid var(--borda);border-radius:999px;padding:6px 11px;
+            font-size:.74rem;font-weight:600;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+  .btn-tema svg{width:14px;height:14px}
+
+  /* avisos */
+  .toast{position:fixed;top:calc(12px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+         width:calc(100% - 36px);max-width:440px;background:var(--surf2);border:1px solid var(--volta);
+         border-radius:var(--r-md);padding:11px 16px;font-size:.86rem;font-weight:600;display:flex;gap:10px;
+         align-items:flex-start;box-shadow:0 10px 25px rgba(0,0,0,.3);z-index:90;animation:desce .28s cubic-bezier(.18,.89,.32,1.28)}
+  .toast .ok{color:var(--volta);flex-shrink:0}
+  @keyframes desce{from{transform:translate(-50%,-70px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+  .faixa{border-radius:var(--r-md);padding:11px 14px;font-size:.84rem;line-height:1.45;margin-bottom:14px;border:1px solid}
+  .faixa.erro{background:var(--perigo-bg);border-color:var(--perigo);color:var(--texto)}
+  .faixa.erro .link{color:var(--perigo)}
+  .offline{background:var(--alerta-bg);border:1px solid var(--alerta);color:var(--alerta);border-radius:var(--r-md);
+           padding:10px 14px;font-size:.8rem;font-weight:600;display:flex;align-items:center;gap:10px;margin-bottom:14px;
+           position:relative;overflow:hidden}
+  .offline::after{content:"";position:absolute;top:0;left:-100%;width:100%;height:100%;
+                  background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);animation:brilho 2.2s infinite}
+  @keyframes brilho{to{left:100%}}
+  .carregando{text-align:center;color:var(--muted);padding:60px 0;font-size:.9rem}
+  .roda{width:28px;height:28px;border-radius:50%;border:3px solid var(--borda-forte);border-top-color:var(--volta);
+        margin:0 auto 14px;animation:gira .8s linear infinite}
+  @keyframes gira{to{transform:rotate(360deg)}}
+
+  /* blocos genéricos */
+  .card{background:var(--surf2);border:1px solid var(--borda);border-radius:var(--r-lg);padding:16px}
+  .titulo-sec{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+              margin:22px 0 10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .titulo-sec small{font-size:.74rem;font-weight:400;text-transform:none;letter-spacing:0}
+  .link{background:none;border:none;color:var(--muted);text-decoration:underline;font-size:.8rem;padding:0}
+  .link-forte{background:none;border:none;color:var(--volta);font-size:.78rem;font-weight:700;padding:4px}
+  .btn-icone{background:transparent;border:none;color:var(--muted);padding:6px;display:inline-flex;align-items:center;border-radius:8px}
+  .btn-icone:hover{color:var(--texto);background:var(--hover)}
+  .btn-icone svg{width:18px;height:18px}
+  .btn-sec{background:var(--surf2);border:1px solid var(--borda);color:var(--texto);padding:10px 12px;border-radius:var(--r-md);
+           font-size:.8rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;
+           transition:border-color var(--rapido),background var(--rapido)}
+  .btn-sec:hover{border-color:var(--volta);background:var(--hover)}
+  .btn-sec svg{width:16px;height:16px}
+  .btn-principal{width:100%;padding:14px;background:var(--volta);color:var(--contra);border:none;border-radius:var(--r-md);
+                 font-size:.95rem;font-weight:800;box-shadow:0 4px 14px rgba(45,212,191,.3);display:flex;
+                 align-items:center;justify-content:center;gap:8px}
+  .btn-principal:active,.btn-sec:active{transform:scale(.98)}
+  .btn-perigo{width:100%;background:transparent;border:1px solid var(--perigo);color:var(--perigo);padding:10px;
+              border-radius:var(--r-md);font-size:.82rem;font-weight:700}
+  .btn-teste{background:transparent;border:1px dashed var(--borda-forte);color:var(--muted);padding:6px 14px;border-radius:999px;font-size:.76rem}
+  .btn-teste:hover{border-color:var(--volta);color:var(--volta)}
+  .grade2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  pre{background:var(--surf2);border:1px solid var(--borda);border-radius:var(--r-md);padding:12px;font-family:var(--mono);
+      font-size:.72rem;overflow-x:auto;color:var(--muted);max-height:170px;margin:12px 0 0;text-align:left}
+  .rodape{margin-top:32px;font-size:.74rem;color:var(--subtle);text-align:center}
+
+  /* formulários */
+  .grupo{margin-bottom:14px;text-align:left}
+  .rot{display:block;font-size:.74rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+  .campo{width:100%;background:var(--surf2);border:1px solid var(--borda);border-radius:var(--r-md);padding:12px 14px;
+         color:var(--texto);font-size:.95rem;font-family:inherit;outline:none}
+  .campo:focus{border-color:var(--volta);box-shadow:0 0 0 2px var(--volta-bg)}
+  .campo.mono{font-family:var(--mono);font-size:.82rem}
+
+  /* entrada */
+  .login-hero{text-align:center;padding:26px 10px 20px}
+  .login-icone{width:84px;height:84px;margin:0 auto 16px;border-radius:24px;box-shadow:var(--brilho);overflow:hidden}
+  .login-hero h2{font-size:1.45rem;font-weight:800;margin:0 0 6px;letter-spacing:-.02em}
+  .login-hero p{color:var(--muted);font-size:.88rem;margin:0}
+  .login-cartoes{display:flex;flex-direction:column;gap:14px;margin:20px 0}
+  .login-cartao{background:var(--surf2);border:1px solid var(--borda);border-radius:var(--r-lg);padding:18px;display:flex;
+                align-items:flex-start;gap:16px;text-align:left;transition:transform var(--rapido),border-color var(--rapido),background var(--rapido)}
+  .login-cartao:hover{border-color:var(--volta);background:var(--hover);transform:translateY(-2px)}
+  .login-cartao:active{transform:scale(.98)}
+  .bolha{width:46px;height:46px;border-radius:14px;background:var(--surf);border:1px solid var(--borda);display:flex;
+         align-items:center;justify-content:center;flex-shrink:0;color:var(--volta)}
+  .gestor .bolha{color:var(--ida)}
+  .login-cartao h3{font-size:1rem;font-weight:700;margin:0 0 4px;display:flex;justify-content:space-between}
+  .login-cartao p{font-size:.8rem;color:var(--muted);margin:0;line-height:1.4}
+  .login-rodape{margin-top:30px;text-align:center;font-size:.78rem;color:var(--subtle);display:flex;flex-direction:column;gap:10px;align-items:center}
+
+  /* PIN */
+  .pin{text-align:center;padding:10px 0 20px}
+  .pin h2{font-size:1.35rem;font-weight:800;margin:0 0 6px}
+  .pin > p{font-size:.85rem;color:var(--muted);margin:0}
+  .casas{display:flex;justify-content:center;gap:16px;margin:24px auto;position:relative;width:max-content;cursor:text}
+  /* campo real do PIN: invisível por cima das casas, chama o teclado numérico do aparelho */
+  #pinCampo{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px;border:0;padding:0;caret-color:transparent}
+  .casa{width:52px;height:58px;border-radius:var(--r-md);background:var(--surf2);border:2px solid var(--borda);display:flex;
+        align-items:center;justify-content:center;font-size:1.6rem;font-weight:800}
+  .casa.cheia{border-color:var(--volta);box-shadow:0 0 10px rgba(45,212,191,.25)}
+  .casa.cursor{border-color:var(--ida)}
+  .pin-aviso{background:var(--alerta-bg);border:1px solid var(--alerta);color:var(--alerta);font-size:.78rem;padding:8px 12px;
+             border-radius:var(--r-sm);margin:0 auto 22px;max-width:320px;line-height:1.3}
+  .pin .btn-principal{max-width:290px;margin:8px auto 0}
+
+  /* motorista */
+  .hero{background:var(--surf2);border:1px solid var(--borda);border-radius:var(--r-lg);padding:16px 18px;margin-bottom:14px;
+        position:relative;overflow:hidden;text-align:left;width:100%;display:block}
+  button.hero:hover{border-color:var(--volta)}
+  .hero-pill{font-size:.72rem;text-transform:uppercase;font-weight:700;letter-spacing:.08em;color:var(--volta);
+             display:inline-flex;align-items:center;gap:6px}
+  .hero-pill i{width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block}
+  .hero.outro .hero-pill{color:var(--ida)}
+  .hero-hora{font-size:2.7rem;font-weight:900;letter-spacing:-.04em;line-height:1;margin:6px 0}
+  .hero-data{font-size:.85rem;color:var(--muted);margin:0}
+  .hero-dica{position:absolute;top:14px;right:14px;font-size:.7rem;background:var(--surf);color:var(--subtle);padding:2px 8px;
+             border-radius:999px;border:1px solid var(--borda)}
+  .viagens2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  .btn-viagem{height:96px;border-radius:var(--r-lg);background:var(--surf2);border:1px solid var(--borda);border-left:6px solid;
+              padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;
+              transition:transform .12s ease,box-shadow var(--rapido)}
+  .btn-viagem:active{transform:scale(.97)}
+  .btn-viagem.ida{border-left-color:var(--ida)} .btn-viagem.ida:hover{box-shadow:0 0 18px var(--ida-bg)}
+  .btn-viagem.volta{border-left-color:var(--volta)} .btn-viagem.volta:hover{box-shadow:0 0 18px var(--volta-bg)}
+  .vg-topo{display:flex;align-items:center;justify-content:space-between}
+  .vg-nome{font-size:1.05rem;font-weight:800;letter-spacing:.02em}
+  .ida .vg-nome{color:var(--ida)} .volta .vg-nome{color:var(--volta)}
+  .vg-rota{font-size:.72rem;color:var(--muted);line-height:1.2}
+  .vg-valor{font-size:1.15rem;font-weight:800}
+  .btn-extra{width:100%;border-radius:var(--r-md);background:transparent;border:1px dashed var(--extra);color:var(--extra);padding:12px 16px;
+             display:flex;align-items:center;justify-content:space-between;font-size:.88rem;font-weight:700;margin-bottom:16px}
+  .btn-extra:hover{background:var(--extra-bg)}
+  .receber{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+  .rot-mini{font-size:.74rem;color:var(--muted);text-transform:uppercase;font-weight:700;letter-spacing:.05em}
+  .receber-valor{font-size:1.7rem;font-weight:900;color:var(--volta);line-height:1.1;margin-top:4px}
+  .receber-nota{font-size:.78rem;color:var(--subtle);text-align:right}
+  .nota{font-size:.76rem;color:var(--subtle);line-height:1.5;margin-top:14px}
+
+  /* listas */
+  .item{background:var(--surf2);border:1px solid var(--borda);border-radius:var(--r-md);padding:12px 14px;margin-bottom:8px;
+        display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:.82rem;text-align:left;width:100%}
+  button.item:hover{border-color:var(--borda-forte)}
+  .item-esq{display:flex;align-items:center;gap:10px;min-width:0}
+  .item-esq strong{display:block}
+  .item-esq span.sub{display:block;color:var(--muted);font-size:.75rem;overflow-wrap:anywhere}
+  .item-dir{text-align:right;flex-shrink:0;display:flex;align-items:center;gap:8px}
+  .item-dir small{display:block;font-size:.72rem;color:var(--muted)}
+  .item.pago{opacity:.62}
+  .tag{padding:4px 8px;border-radius:6px;font-size:.7rem;font-weight:800;letter-spacing:.04em;flex-shrink:0}
+  .tag.ida{background:var(--ida-bg);color:var(--ida)} .tag.volta{background:var(--volta-bg);color:var(--volta)}
+  .tag.extra{background:var(--extra-bg);color:var(--extra)} .tag.pix{background:var(--pix-bg);color:var(--pix)}
+  .mini{background:transparent;border:1px solid var(--borda-forte);color:var(--muted);padding:3px 9px;border-radius:999px;font-size:.7rem}
+  .mini:hover{border-color:var(--perigo);color:var(--perigo)}
+  .navmes{display:inline-flex;align-items:center;gap:4px;background:var(--surf2);border:1px solid var(--borda);border-radius:999px;padding:2px}
+  .navmes button{background:none;border:none;width:28px;height:26px;border-radius:999px;font-size:1rem;color:var(--muted)}
+  .navmes button:hover{background:var(--hover);color:var(--texto)}
+  .navmes span{font-size:.76rem;font-weight:600;text-transform:none;letter-spacing:0;color:var(--texto);padding:0 4px}
+
+  /* gestor */
+  .cab-gestor{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+  .cab-gestor h2{font-size:1.25rem;font-weight:800;margin:0}
+  .btn-sair{background:transparent;border:1px solid var(--borda);color:var(--muted);padding:5px 11px;border-radius:999px;font-size:.74rem;font-weight:600}
+  .btn-sair:hover{border-color:var(--perigo);color:var(--perigo)}
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 4px}
+  .kpi{background:var(--surf2);border:1px solid var(--borda);border-radius:var(--r-md);padding:10px 8px;text-align:center}
+  .kpi small{display:block;font-size:.64rem;text-transform:uppercase;font-weight:700;color:var(--muted);letter-spacing:.04em;margin-bottom:2px}
+  .kpi b{font-size:.98rem;font-weight:800}
+  .pagar{background:var(--surf2);border:1px solid var(--borda);border-radius:var(--r-md);padding:12px 14px;display:flex;align-items:center;margin-bottom:10px}
+  .avatar{width:38px;height:38px;border-radius:50%;background:var(--surf);border:1px solid var(--borda);color:var(--volta);display:flex;
+          align-items:center;justify-content:center;font-size:.95rem;font-weight:800;flex-shrink:0}
+  .pagar-info{flex:1;margin:0 12px;min-width:0}
+  .pagar-info b{display:block;font-size:.88rem}
+  .pagar-info span{font-size:.74rem;color:var(--muted)}
+  .btn-pix{background:var(--pix-bg);border:1px solid var(--pix);color:var(--pix);padding:6px 12px;border-radius:999px;font-size:.78rem;
+           font-weight:700;white-space:nowrap}
+  .btn-pix:hover{background:var(--pix);color:var(--contra)}
+  .vazio{font-size:.82rem;color:var(--subtle);margin:0 0 6px}
+  .motorista-linha{background:var(--surf2);border:1px solid var(--borda);border-radius:var(--r-md);padding:10px 12px;display:flex;
+                   align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:.8rem}
+  .motorista-linha strong{display:block}
+  .chip{font-family:var(--mono);font-size:.72rem;background:var(--surf);padding:2px 6px;border-radius:4px;border:1px solid var(--borda);
+        color:var(--volta);overflow-wrap:anywhere}
+  .acoes-linha{display:flex;align-items:center;gap:2px;flex-shrink:0}
+
+  /* folha que sobe de baixo */
+  .fundo-folha{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:70}
+  .folha{position:fixed;left:0;right:0;bottom:0;margin:0 auto;max-width:500px;background:var(--surf);border-top:1px solid var(--borda);
+         border-radius:var(--r-sheet) var(--r-sheet) 0 0;box-shadow:0 -15px 40px rgba(0,0,0,.45);z-index:80;max-height:90vh;overflow-y:auto;
+         padding:12px 20px calc(28px + env(safe-area-inset-bottom))}
+  .folha.entra{animation:sobe .32s cubic-bezier(.16,1,.3,1)}
+  .fundo-folha.entra{animation:aparece .25s ease}
+  @keyframes sobe{from{transform:translateY(105%)}to{transform:translateY(0)}}
+  @keyframes aparece{from{opacity:0}to{opacity:1}}
+  .alca{width:44px;height:5px;border-radius:999px;background:var(--borda-forte);margin:4px auto 16px;display:block;border:none;padding:0}
+  .folha h3{margin:0 0 6px;font-size:1.15rem}
+  .folha > p{font-size:.8rem;color:var(--muted);margin:0 0 16px}
+  .bloco{background:var(--surf2);border:1px solid var(--borda);border-radius:var(--r-md);padding:14px;margin-bottom:14px;text-align:left}
+  .resumo{margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.85rem;color:var(--muted)}
+  .resumo b{font-size:.95rem;color:var(--texto)}
+  .e2e{font-family:var(--mono);font-size:.76rem;background:var(--surf);padding:8px;border-radius:6px;border:1px solid var(--borda);
+       word-break:break-all;margin-top:6px}
+  .ajuda{font-size:.74rem;color:var(--subtle);margin:6px 0 0}
+  .lembrete{background:var(--alerta-bg);border:1px solid var(--alerta);color:var(--alerta);padding:10px 12px;border-radius:var(--r-sm);
+            font-size:.76rem;line-height:1.4;margin-bottom:16px}
+  .recibo{text-align:center}
+  .recibo-icone{width:60px;height:60px;border-radius:16px;background:var(--pix-bg);color:var(--pix);display:inline-flex;align-items:center;
+                justify-content:center;margin-bottom:12px}
+  .recibo-icone.doc{background:var(--perigo-bg);color:var(--perigo)}
+  .linhas{background:var(--surf2);border:1px solid var(--borda);border-radius:var(--r-md);padding:4px 14px;text-align:left;font-size:.82rem;margin:14px 0}
+  .linhas div{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--borda)}
+  .linhas div:last-child{border-bottom:none}
+  .linhas span{color:var(--muted)} .linhas b{text-align:right}
 </style>
 </head>
 <body>
@@ -71,15 +280,13 @@
 const API = "https://script.google.com/macros/s/AKfycbyb3mIEaspqZPGhbWofnaqfZ7YwMV9URH0usuFylEIY7AFe8BKq2jlzzfMqZDyrpM4M/exec";
 /* ————————————————————————————————————————————————————————— */
 
-const VERSAO = "5.1";
+const VERSAO = "6.0";
 
 const TIPOS = {
   ida:   {sigla:"IDA",   rotulo:"Levar equipe",  sub:"casa → empresa", cor:"var(--ida)"},
   volta: {sigla:"VOLTA", rotulo:"Trazer equipe", sub:"empresa → casa", cor:"var(--volta)"},
   extra: {sigla:"EXTRA", rotulo:"Viagem avulsa", sub:"valor e descrição na mão", cor:"var(--extra)"}
 };
-const MESES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
-const SEMANA = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
 const pad = n => String(n).padStart(2,"0");
 const hojeISO = () => { const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); };
 const agoraHM = () => { const d=new Date(); return pad(d.getHours())+":"+pad(d.getMinutes()); };
@@ -87,14 +294,8 @@ const moeda = v => (Number(v)||0).toLocaleString("pt-BR",{style:"currency",curre
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 // data vem da planilha (digitada pelo motorista): sempre escapar, vai direto para o innerHTML
 const curto = iso => { const [a,m,d]=String(iso).split("-"); return esc(d&&m ? d+"/"+m : iso); };
-function rotuloDia(iso){
-  const [a,m,d] = String(iso).split("-").map(Number);
-  if(!a||!m||!d) return esc(iso);
-  return d+" de "+MESES[m-1]+", "+SEMANA[new Date(a,m-1,d).getDay()];
-}
 // impede que texto vire fórmula ao colar no Excel
 const celula = s => /^[=+\-@\t\r]/.test(String(s==null?"":s)) ? "'"+s : String(s==null?"":s);
-function rotuloMes(mes){ const [a,m]=mes.split("-"); return MESES[Number(m)-1]+" "+a; }
 function mover(mes,passo){
   const [a,m]=mes.split("-").map(Number);
   const d=new Date(a,m-1+passo,1);
@@ -159,7 +360,12 @@ const E = {
   dados: null,
   carimbo: {data: hojeISO(), hora: agoraHM(), manual: false},
   extraAberto: false,
+  extra: {valor: "", desc: ""},
   fechando: null,
+  detalhe: null,
+  folhaNova: false,
+  cadastroAberto: false,
+  pinDigitado: "",
   pin: localStorage.getItem("cf_pin") || "",
   liberado: false,
   semPin: false,
@@ -274,127 +480,222 @@ async function carregar(){
 }
 
 /* ————— telas ————— */
+// ícone do app (Conceito A do redesign v3): carro de frente amarelo, pino teal
+const ICONE = '<svg viewBox="0 0 100 100" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">'+
+  '<defs><linearGradient id="icBg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0B1D2A"/><stop offset="100%" stop-color="#1E4260"/></linearGradient>'+
+  '<linearGradient id="icCarro" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD466"/><stop offset="100%" stop-color="#FFB319"/></linearGradient></defs>'+
+  '<rect width="100" height="100" rx="22" fill="url(#icBg)"/>'+
+  '<path d="M15 88 Q 50 78 85 88" stroke="#2DD4BF" stroke-width="2.5" stroke-dasharray="3 3" fill="none" opacity="0.6"/>'+
+  '<rect x="22" y="62" width="10" height="16" rx="4" fill="#0A1520"/><rect x="68" y="62" width="10" height="16" rx="4" fill="#0A1520"/>'+
+  '<path d="M26 50 L34 32 C35 30 38 29 42 29 L58 29 C62 29 65 30 66 32 L74 50 C77 50 79 53 79 56 L79 68 C79 71 77 73 74 73 L26 73 C23 73 21 71 21 68 L21 56 C21 53 23 50 26 50 Z" fill="url(#icCarro)"/>'+
+  '<path d="M35 47 L38 34 C39 33 41 32 44 32 L56 32 C59 32 61 33 62 34 L65 47 Z" fill="#0B1D2A" opacity="0.9"/>'+
+  '<rect x="41" y="62" width="18" height="5" rx="2.5" fill="#2DD4BF" opacity="0.85"/>'+
+  '<circle cx="28" cy="57" r="4.5" fill="#FFFFFF"/><circle cx="72" cy="57" r="4.5" fill="#FFFFFF"/>'+
+  '<circle cx="28" cy="57" r="2.5" fill="#FFE58F"/><circle cx="72" cy="57" r="2.5" fill="#FFE58F"/>'+
+  '<g transform="translate(66, 12)"><path d="M11 0 C5 0 0 5 0 11 C0 19 11 28 11 28 C11 28 22 19 22 11 C22 5 17 0 11 0 Z" fill="#2DD4BF"/><circle cx="11" cy="10" r="4" fill="#0B1D2A"/></g></svg>';
+
+// ícones de traço (24×24) usados nos botões
+const svg = (d, extra) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" '+(extra||"")+'>'+d+'</svg>';
+const IC = {
+  lua:    svg('<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'),
+  sol:    svg('<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>'),
+  auto:   svg('<circle cx="12" cy="12" r="9"/><path d="M12 3v18"/>'),
+  volante:svg('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="8" y1="12" x2="16" y2="12"/><circle cx="12" cy="12" r="4"/>', 'width="24" height="24"'),
+  cadeado:svg('<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>', 'width="24" height="24"'),
+  ida:    svg('<path d="M5 12h14m-6-6l6 6-6 6"/>', 'width="22" height="22" stroke-width="2.5" style="color:var(--ida)"'),
+  volta:  svg('<path d="M19 12H5m6 6l-6-6 6-6"/>', 'width="22" height="22" stroke-width="2.5" style="color:var(--volta)"'),
+  semRede:svg('<path d="M1 1l22 22m-5.3-5.3A10 10 0 002.9 6.9m2.8-2.8a10 10 0 0113.4 13.4"/><line x1="12" y1="20" x2="12.01" y2="20"/>', 'width="18" height="18" style="flex-shrink:0"'),
+  prancheta:svg('<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>'),
+  arquivo:svg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>'),
+  doc:    svg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/>', 'width="32" height="32"'),
+  check:  svg('<polyline points="20 6 9 17 4 12"/>', 'width="32" height="32" stroke-width="3"'),
+  zap:    svg('<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>'),
+  link:   svg('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'),
+  lapis:  svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
+  lixo:   svg('<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'),
+  play:   svg('<circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>'),
+  girar:  svg('<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>'),
+  clipe:  svg('<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>')
+};
+
+const MESES_LONGOS = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+const SEMANA_CURTA = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+const mesLongo = mes => { const [a,m] = mes.split("-"); return MESES_LONGOS[Number(m)-1]+"/"+a; };
+function dataPorExtenso(iso){
+  const [a,m,d] = String(iso).split("-").map(Number);
+  return (a&&m&&d) ? new Date(a,m-1,d).toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long",year:"numeric"}) : esc(iso);
+}
+function diaCurto(iso){
+  const [a,m,d] = String(iso).split("-").map(Number);
+  return (a&&m&&d) ? SEMANA_CURTA[new Date(a,m-1,d).getDay()]+" "+pad(d)+"/"+pad(m) : esc(iso);
+}
+const e2eCurto = e => e && e.length > 14 ? e.slice(0,9)+"…"+e.slice(-4) : (e||"");
+const plural = (n, um, varios) => n+" "+(n===1?um:varios);
+const navMes = () => '<span class="navmes"><button data-acao="mes" data-passo="-1" aria-label="mês anterior">‹</button>'+
+  '<span>'+mesLongo(E.mes)+'</span><button data-acao="mes" data-passo="1" aria-label="próximo mês">›</button></span>';
+
+/* tema: auto (segue o aparelho), escuro ou claro — escolha guardada só neste aparelho */
+const TEMAS = {auto:{ic:"auto", nome:"Auto"}, escuro:{ic:"lua", nome:"Escuro"}, claro:{ic:"sol", nome:"Claro"}};
+function aplicarTema(){
+  let t = "auto"; try { t = localStorage.getItem("cf_tema") || "auto"; } catch(e){}
+  if(!TEMAS[t]) t = "auto";
+  if(t === "auto") document.documentElement.removeAttribute("data-tema");
+  else document.documentElement.setAttribute("data-tema", t);
+  return t;
+}
+let TEMA = aplicarTema();
+
+let avisoTimer = null;
 function pintar(){
   const app = document.getElementById("app");
-  let html = '<div class="topo"><span class="marca">COUVE FLOR · TRANSPORTE</span>';
-  if(E.token && E.dados) html += '<span style="font-size:15px">'+esc(E.dados.nome)+'</span>';
-  html += '</div>';
+  const sub = E.token ? (E.dados && E.dados.nome ? esc(E.dados.nome) : "Motorista")
+            : E.liberado ? "Painel do gestor" : "Transporte da equipe";
+  let html = '<div class="topo"><div class="icone-app">'+ICONE+'</div>'+
+    '<div class="topo-titulo"><b>Viagens Couve Flor</b><span>'+sub+'</span></div>'+
+    '<button class="btn-tema" data-acao="tema" aria-label="Trocar tema">'+IC[TEMAS[TEMA].ic]+TEMAS[TEMA].nome+'</button></div>';
 
-  if(E.aviso) html += '<div class="aviso '+(E.avisoBom?"bom":"erro")+'">'+esc(E.aviso)+
-    (E.podeRepetir?' <button class="link" style="color:var(--texto)" data-acao="recarregar">tentar de novo</button>':'')+'</div>';
+  // aviso de sucesso aparece por cima e some sozinho; erro fica na tela até ser resolvido
+  if(E.aviso && E.avisoBom) html += '<div class="toast" role="status"><span class="ok">✓</span><span>'+esc(E.aviso)+'</span></div>';
+  else if(E.aviso) html += '<div class="faixa erro" role="alert">'+esc(E.aviso)+
+    (E.podeRepetir?' <button class="link" data-acao="recarregar">tentar de novo</button>':'')+'</div>';
   const pendentes = fila().length;
-  if(pendentes) html += '<div class="aviso erro">'+pendentes+(pendentes===1?" registro aguardando":" registros aguardando")+' envio. Abra o app com internet para subir.</div>';
+  if(pendentes) html += '<div class="offline">'+IC.semRede+'<span>'+
+    plural(pendentes, "viagem aguardando", "viagens aguardando")+' internet — '+(pendentes===1?"enviará sozinha":"enviarão sozinhas")+'</span></div>';
 
-  if(E.carregando) html += '<p style="color:#7F9AAC">Conectando à planilha…' +
-    (E.tentativa > 1 ? ' tentativa ' + E.tentativa + ' de ' + E.totalTentativas : '') + '</p>';
+  if(E.carregando) html += '<div class="carregando"><div class="roda"></div>Conectando à planilha…' +
+    (E.tentativa > 1 ? '<br>tentativa ' + E.tentativa + ' de ' + E.totalTentativas : '') + '</div>';
   else if(E.token) html += E.dados ? telaMotorista() : telaSemAcesso();
   else if(E.liberado) html += telaGestor();
   else if(!E.pin && !E.semPin && E.papel !== "gestor") html += telaEscolha();
   else html += telaPin();
 
-  html += '<p class="rodape">versão '+VERSAO+'</p>';
+  if(!E.carregando) html += folha();
+  if(!E.carregando && (E.token || E.liberado)) html += '<p class="rodape">Viagens Couve Flor · versão '+VERSAO+'</p>';
   app.innerHTML = html;
+  E.folhaNova = false;
+  // na tela do PIN o cursor já fica nas casas (no computador digita direto; no celular, um toque abre o teclado)
+  const campoPin = document.getElementById("pinCampo");
+  if(campoPin) campoPin.focus();
+
+  clearTimeout(avisoTimer);
+  if(E.aviso && E.avisoBom && !E.ocupado){
+    const atual = E.aviso;
+    avisoTimer = setTimeout(() => { if(E.aviso === atual){ E.aviso = null; pintar(); } }, 4500);
+  }
 }
 
 function telaMotorista(){
-  const c = E.carimbo, eHoje = c.data === hojeISO();
-  let h = '<div class="caixa" style="margin-bottom:16px;padding:14px 16px">';
+  const c = E.carimbo, eAgora = !c.mexido;
+  let h;
   if(c.manual){
-    h += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
-         '<input type="date" id="cData" class="campo" value="'+c.data+'">'+
-         '<input type="time" id="cHora" class="campo" value="'+c.hora+'">'+
-         '<button class="link" style="color:var(--volta)" data-acao="fecharCarimbo">pronto</button></div>';
+    h = '<div class="hero outro"><span class="hero-pill"><i></i>Outro dia ou horário</span>'+
+        '<div class="grade2" style="margin-top:10px">'+
+        '<input type="date" id="cData" class="campo" value="'+c.data+'" aria-label="dia">'+
+        '<input type="time" id="cHora" class="campo" value="'+c.hora+'" aria-label="horário"></div>'+
+        '<div style="display:flex;gap:10px;margin-top:10px">'+
+        '<button class="btn-sec" style="flex:1" data-acao="fecharCarimbo">Pronto</button>'+
+        '<button class="btn-sec" style="flex:1" data-acao="carimboAgora">Usar agora</button></div></div>';
   } else {
-    h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">'+
-         '<span style="font-family:var(--cond);font-size:23px">'+(eHoje?"Agora":rotuloDia(c.data))+' · '+c.hora+'</span>'+
-         '<button class="link" data-acao="abrirCarimbo">outro dia ou horário</button></div>';
+    h = '<button class="hero'+(eAgora?'':' outro')+'" data-acao="abrirCarimbo">'+
+        '<span class="hero-dica">alterar ⟳</span>'+
+        '<span class="hero-pill"><i></i>'+(eAgora?"Horário atual":"Registrando em outro horário")+'</span>'+
+        '<div class="hero-hora tab">'+esc(c.hora)+'</div>'+
+        '<p class="hero-data">'+dataPorExtenso(c.data)+'</p></button>';
   }
-  h += '</div>';
   const offline = !!E.dados.semConexao;
+  const tarifa = offline ? "" : moeda(E.dados.tarifa||0);
 
-  for(const t of ["ida","volta","extra"]){
-    h += '<button class="caixa botao-viagem" '+(E.ocupado?"disabled":"")+
-         ' style="border-left:6px solid '+TIPOS[t].cor+'" data-acao="tocar" data-tipo="'+t+'">'+
-         '<span class="sigla" style="color:'+TIPOS[t].cor+'">'+TIPOS[t].sigla+'</span>'+
-         '<span><span class="rotulo">'+TIPOS[t].rotulo+'</span><span class="sub">'+TIPOS[t].sub+'</span></span></button>';
-    if(t==="extra" && E.extraAberto){
-      h += '<div class="caixa" style="margin:-4px 0 12px">'+
-           '<input id="eValor" class="campo" inputmode="decimal" placeholder="Valor, ex: 70" style="width:130px">'+
-           '<input id="eDesc" class="campo" placeholder="O que foi essa viagem?" style="width:100%;margin-top:8px">'+
-           '<div style="margin-top:10px;display:flex;gap:8px">'+
-           '<button class="acao" data-acao="salvarExtra">Registrar extra</button>'+
-           '<button class="link" data-acao="cancelarExtra">fechar</button></div></div>';
-    }
+  h += '<div class="viagens2">';
+  for(const t of ["ida","volta"]){
+    h += '<button class="btn-viagem '+t+'" '+(E.ocupado?"disabled":"")+' data-acao="tocar" data-tipo="'+t+'">'+
+      '<div class="vg-topo"><span class="vg-nome">'+TIPOS[t].sigla+'</span>'+IC[t]+'</div>'+
+      '<div><div class="vg-rota">'+TIPOS[t].sub+'</div><div class="vg-valor tab">'+tarifa+'</div></div></button>';
   }
+  h += '</div><button class="btn-extra" '+(E.ocupado?"disabled":"")+' data-acao="tocar" data-tipo="extra">'+
+    '<span>+ Registrar viagem EXTRA</span><span style="font-size:.75rem;font-weight:400">valor e motivo livres →</span></button>';
 
   // sem dados do servidor, não há o que resumir: mostrar zero seria informação errada
-  if(offline) return h + '<p style="font-size:14px;color:var(--fraco);margin-top:24px;line-height:1.6">'+
-    'Seu saldo e a lista de viagens aparecem quando a conexão voltar.</p>';
+  if(offline) return h + '<p class="nota">Seu saldo e a lista de viagens aparecem quando a conexão voltar.</p>';
 
-  // resumo do que ainda não foi pago
-  h += '<div class="caixa" style="margin-top:24px;border-left:6px solid var(--ida)">'+
-       '<span style="font-size:13px;color:var(--fraco)">A receber</span>'+
-       '<div style="font-family:var(--cond);font-size:40px;line-height:1.1;color:var(--ida)">'+moeda(E.dados.abertoValor||0)+'</div>'+
-       '<span style="font-size:13px;color:var(--fraco)">'+(E.dados.abertoQtd||0)+
-         ((E.dados.abertoQtd===1)?" viagem em aberto":" viagens em aberto")+
-         (E.dados.abertoDesde?" · desde "+curto(E.dados.abertoDesde):"")+'</span></div>';
+  h += '<div class="card"><div class="receber"><div><div class="rot-mini">A receber</div>'+
+    '<div class="receber-valor tab">'+moeda(E.dados.abertoValor||0)+'</div></div>'+
+    '<div class="receber-nota"><strong>'+plural(E.dados.abertoQtd||0, "viagem", "viagens")+'</strong>'+
+    (E.dados.abertoDesde?'<br>desde '+curto(E.dados.abertoDesde):'<br>em aberto')+'</div></div></div>';
 
   const pgs = (E.dados.pagamentos||[]).slice().sort((a,b)=>String(b.ate).localeCompare(String(a.ate)));
   if(pgs.length){
-    h += '<p class="dia" style="margin-top:22px">Pagamentos recebidos</p>';
-    for(const p of pgs.slice(0,6)){
-      h += '<div class="viagem"><span style="flex:1;font-size:14px">'+curto(p.de)+' a '+curto(p.ate)+
-           ' · '+p.qtd+(p.qtd===1?" viagem":" viagens")+
-           (p.e2e?'<span class="codigo">PIX '+esc(p.e2e)+'</span>':'')+'</span>'+
-           '<span class="valor" style="color:var(--volta)">'+moeda(p.valor)+'</span></div>';
-    }
+    h += '<div class="titulo-sec"><span>Pagamentos recebidos</span></div>';
+    for(const p of pgs.slice(0,6)) h += itemPagamento(p, false);
   }
 
   const vs = (E.dados.viagens||[]).slice().sort((a,b)=>(b.data+b.hora).localeCompare(a.data+a.hora));
-  h += '<div class="navmes" style="margin-top:28px">'+
-       '<button class="seta" data-acao="mes" data-passo="-1">‹</button>'+
-       '<span>'+rotuloMes(E.mes)+' · '+vs.length+(vs.length===1?" viagem":" viagens")+'</span>'+
-       '<button class="seta" data-acao="mes" data-passo="1">›</button></div>'+
-       '<p style="font-size:15px;color:var(--fraco);margin:0 0 16px">'+moeda(soma(vs))+' no mês</p>';
-
+  h += '<div class="titulo-sec"><span>Viagens do mês</span>'+navMes()+'</div>'+
+    '<p class="vazio">'+plural(vs.length, "viagem", "viagens")+' · '+moeda(soma(vs))+' no mês</p>';
   h += listar(vs, {cancelar:"cancelar"});
-  h += '<p style="font-size:12px;color:var(--apagado);margin-top:16px;line-height:1.5">'+
-       'Você cancela o que lançou hoje. Registro de outros dias, ou viagem já paga, só o gestor mexe.</p>';
+  h += '<p class="nota">Você cancela o que lançou hoje. Registro de outros dias, ou viagem já paga, só o gestor mexe.</p>';
   return h;
 }
 
+function itemPagamento(p, gestor){
+  const direita = gestor
+    ? (p.comprovante ? '<small style="color:var(--volta)">comprovante ✓</small>' : '<small style="color:var(--ida)">sem comprovante</small>')
+    : '<small>detalhes →</small>';
+  return '<button class="item" data-acao="verPagamento" data-id="'+esc(p.id)+'">'+
+    '<div class="item-esq"><span class="tag pix">PIX</span><div>'+
+      '<strong>'+(gestor ? esc(p.nome)+' · '+esc(String(p.pagoEm).split(" ")[0]) : curto(p.de)+' – '+curto(p.ate))+'</strong>'+
+      '<span class="sub tab">'+(p.e2e ? esc(e2eCurto(p.e2e))+' ✓' : plural(p.qtd, "viagem", "viagens"))+'</span></div></div>'+
+    '<div class="item-dir"><div><b class="tab" style="color:var(--pix)">'+moeda(p.valor)+'</b>'+direita+'</div></div></button>';
+}
+
 function telaSemAcesso(){
-  return '<p style="font-size:15px;color:var(--fraco);line-height:1.6">'+
-    'Este aparelho está com um acesso de motorista que não vale mais. Abra de novo o link que o gestor mandou, '+
-    'ou saia para entrar como gestor.</p>'+
-    '<p style="margin-top:16px"><button class="acao" data-acao="sair">Sair deste acesso</button></p>';
+  return '<div class="login-hero"><div class="login-icone">'+ICONE+'</div><h2>Acesso não vale mais</h2>'+
+    '<p>Este aparelho está com um acesso de motorista que não vale mais. Abra de novo o link que o gestor mandou, '+
+    'ou saia para entrar como gestor.</p></div>'+
+    '<button class="btn-principal" data-acao="sair">Sair deste acesso</button>';
 }
 
 function telaEscolha(){
   if(E.papel === "motorista"){
-    return '<p style="font-family:var(--cond);font-size:26px;margin:0 0 6px">Este celular não está identificado</p>'+
-      '<p style="font-size:15px;color:var(--fraco);line-height:1.6">Peça ao gestor para reenviar o seu link pessoal no WhatsApp '+
-      'e abra por ele. Depois disso o aplicativo volta a abrir direto nas suas viagens.</p>'+
-      '<p style="margin-top:18px"><button class="link" data-acao="voltarEscolha">voltar</button></p>';
+    return '<div class="login-hero"><div class="login-icone">'+ICONE+'</div><h2>Celular não identificado</h2>'+
+      '<p>Peça ao gestor para reenviar o seu link pessoal no WhatsApp e abra por ele. '+
+      'Depois disso o aplicativo volta a abrir direto nas suas viagens.</p></div>'+
+      '<button class="btn-sec" style="width:100%" data-acao="voltarEscolha">← Voltar</button>';
   }
-  return '<p style="font-family:var(--cond);font-size:26px;margin:0 0 14px">Quem está entrando?</p>'+
-    '<button class="caixa" style="margin-bottom:10px;font-size:18px" data-acao="souMotorista">Sou motorista</button>'+
-    '<button class="caixa" style="font-size:18px" data-acao="souGestor">Sou o gestor</button>'+
-    '<p style="margin-top:22px"><button class="link" data-acao="testar">testar conexão com a planilha</button></p>'+
+  return '<div class="login-hero"><div class="login-icone">'+ICONE+'</div>'+
+    '<h2>Quem está entrando?</h2><p>Escolha como você usa o aplicativo</p></div>'+
+    '<div class="login-cartoes">'+
+      '<button class="login-cartao" data-acao="souMotorista"><div class="bolha">'+IC.volante+'</div>'+
+        '<div><h3>Sou motorista <span style="color:var(--volta)">→</span></h3>'+
+        '<p>Você entra pelo seu link pessoal. Se perdeu, peça ao gestor pelo WhatsApp.</p></div></button>'+
+      '<button class="login-cartao gestor" data-acao="souGestor"><div class="bolha">'+IC.cadeado+'</div>'+
+        '<div><h3>Sou o gestor <span style="color:var(--ida)">→</span></h3>'+
+        '<p>Painel de viagens e pagamentos, com o PIN de 4 dígitos.</p></div></button>'+
+    '</div>'+
+    '<div class="login-rodape"><button class="btn-teste" data-acao="testar">⚡ Testar conexão com a planilha</button>'+
+    '<span>Viagens Couve Flor · versão '+VERSAO+'</span></div>'+
     (E.diagnostico?'<pre>'+esc(E.diagnostico)+'</pre>':'');
 }
 
+function casasPin(n){
+  let h = "";
+  for(let i = 0; i < 4; i++) h += '<span class="casa'+(i<n?' cheia':'')+(i===n?' cursor':'')+'">'+(i<n?"•":"")+'</span>';
+  return h;
+}
+
 function telaPin(){
-  const primeira = E.semPin;
-  return '<div style="max-width:300px">'+
-    '<p style="font-family:var(--cond);font-size:26px;margin:0 0 4px">'+(primeira?"Crie o PIN do gestor":"PIN do gestor")+'</p>'+
-    '<p style="font-size:13px;color:var(--fraco);margin:0 0 14px">'+
-      (primeira?"Quatro dígitos. Só você usa esta tela.":"Quatro dígitos. Os motoristas entram pelo link pessoal.")+'</p>'+
-    '<input id="pin" class="campo" type="password" inputmode="numeric" maxlength="4" '+
-      'style="font-size:24px;letter-spacing:.4em;width:120px;text-align:center">'+
-    '<button class="acao" style="margin-left:10px;padding:12px 18px" data-acao="'+(primeira?"criarPin":"entrar")+'">'+
-      (primeira?"Criar":"Entrar")+'</button>'+
-    '<p style="margin-top:22px"><button class="link" data-acao="testar">testar conexão com a planilha</button></p>'+
+  const primeira = E.semPin, n = E.pinDigitado.length;
+  // as casas são só desenho: por cima delas fica um campo invisível que chama o teclado numérico do celular
+  return '<div class="pin"><h2>'+(primeira?"Crie o PIN do gestor":"PIN do gestor")+'</h2>'+
+    '<p>'+(primeira?"Quatro dígitos. Só você usa esta tela.":"Toque nas casas e digite os 4 dígitos.")+'</p>'+
+    '<label class="casas">'+casasPin(n)+
+      '<input id="pinCampo" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" '+
+      'aria-label="PIN de 4 dígitos" value="'+esc(E.pinDigitado)+'"></label>'+
+    (primeira?'':'<div class="pin-aviso">⚠️ 5 erros seguidos travam o acesso por 15 minutos</div>')+
+    // entrar é automático ao completar 4 dígitos; criar pede confirmação no botão
+    (primeira?'<button class="btn-principal" data-acao="criarPin" '+(n<4?"disabled":"")+'>Criar PIN</button>':'')+
+    '<div class="login-rodape" style="margin-top:22px">'+
+      (E.pin?'':'<button class="link" data-acao="voltarEscolha">← voltar</button>')+
+      '<button class="btn-teste" data-acao="testar">⚡ Testar conexão com a planilha</button></div>'+
     (E.diagnostico?'<pre>'+esc(E.diagnostico)+'</pre>':'')+'</div>';
 }
 
@@ -404,124 +705,160 @@ function telaGestor(){
   const abertas = d.abertas || [];
   const pgs = (d.pagamentos||[]).slice().sort((a,b)=>String(b.ate).localeCompare(String(a.ate)));
 
-  let h = '<div class="navmes">'+
-    '<button class="seta" data-acao="mes" data-passo="-1">‹</button><span>'+rotuloMes(E.mes)+'</span>'+
-    '<button class="seta" data-acao="mes" data-passo="1">›</button></div>'+
-    '<p class="total">'+moeda(soma(vs))+'</p>'+
-    '<p style="font-size:14px;color:#7F9AAC;margin:0 0 6px">'+vs.length+(vs.length===1?" viagem no mês":" viagens no mês")+'</p>'+
-    '<p style="font-size:14px;color:var(--ida);margin:0 0 20px">'+moeda(soma(abertas))+' em aberto no total, '+
-      abertas.length+(abertas.length===1?" viagem":" viagens")+'</p>';
+  let h = '<div class="cab-gestor"><div><h2>Painel do Gestor</h2></div>'+
+    '<button class="btn-sair" data-acao="sairGestor">Sair ⎋</button></div>'+
+    navMes()+
+    '<div class="kpis">'+
+      '<div class="kpi"><small>Total do mês</small><b class="tab" style="color:var(--volta)">'+moeda(soma(vs))+'</b></div>'+
+      '<div class="kpi"><small>Viagens</small><b class="tab">'+vs.length+'</b></div>'+
+      '<div class="kpi"><small>Em aberto</small><b class="tab" style="color:var(--ida)">'+moeda(soma(abertas))+'</b></div>'+
+    '</div>';
 
   // ——— fechamento por motorista ———
-  h += '<p class="dia" style="font-size:20px;margin-bottom:8px">A pagar</p>';
-  if(!abertas.length) h += '<p style="font-size:14px;color:var(--apagado);margin-bottom:20px">Nada em aberto. Tudo fechado.</p>';
+  h += '<div class="titulo-sec"><span>A pagar (fechamento)</span><small>'+plural(abertas.length, "viagem", "viagens")+'</small></div>';
+  if(!abertas.length) h += '<p class="vazio">Nada em aberto. Tudo fechado.</p>';
   for(const m of (d.motoristas||[])){
     const dele = abertas.filter(v=>v.motorista===m.id);
     if(!dele.length) continue;
     const datas = dele.map(v=>v.data).sort();
-    h += '<div style="padding:10px 0;border-bottom:1px solid var(--linha)">'+
-      '<div style="display:flex;align-items:center;gap:10px">'+
-        '<span style="flex:1;font-size:16px">'+esc(m.nome)+
-          '<br><span style="font-size:12px;color:var(--apagado)">'+dele.length+
-          (dele.length===1?" viagem":" viagens")+' desde '+curto(datas[0])+'</span></span>'+
-        '<span style="font-family:var(--cond);font-size:26px;color:var(--ida);font-variant-numeric:tabular-nums">'+moeda(soma(dele))+'</span>'+
-        '<button class="acao mini" data-acao="abrirFechamento" data-id="'+m.id+'">fechar</button>'+
-      '</div>';
-    if(E.fechando && E.fechando.id === m.id){
-      const entram = dele.filter(v => v.data <= E.fechando.ate);
-      h += '<div class="caixa" style="margin-top:10px">'+
-        '<p style="font-size:13px;color:var(--fraco);margin:0 0 8px">Fechar viagens até o dia:</p>'+
-        '<input type="date" id="fAte" class="campo" value="'+E.fechando.ate+'" data-acao="nada">'+
-        '<p style="font-size:14px;margin:10px 0 0">Entram <strong>'+entram.length+'</strong> '+
-          (entram.length===1?"viagem":"viagens")+' · <strong>'+moeda(soma(entram))+'</strong></p>'+
-        '<p style="font-size:13px;color:var(--fraco);margin:14px 0 6px">Código E2E do PIX (no comprovante do banco):</p>'+
-        '<input id="fE2E" class="campo" autocomplete="off" autocapitalize="characters" spellcheck="false" '+
-          'placeholder="E00000000202610021200..." style="width:100%;font-size:13px" value="'+esc(E.fechando.e2e||"")+'">'+
-        '<p style="font-size:13px;color:var(--fraco);margin:14px 0 6px">Comprovante (PDF ou foto, opcional):</p>'+
-        (E.fechando.arquivo
-          ? '<span style="font-size:14px;overflow-wrap:anywhere">'+esc(E.fechando.arquivo.name)+'</span> '+
-            '<button class="link" data-acao="tirarArquivo">tirar</button>'
-          : '<button class="acao mini" data-acao="escolherArquivo" data-para="fechamento">escolher arquivo</button>')+
-        '<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">'+
-          '<button class="acao" data-acao="confirmarFechamento" data-id="'+m.id+'">Confirmar pagamento</button>'+
-          '<button class="link" data-acao="cancelarFechamento">cancelar</button></div>'+
-        '<p style="font-size:12px;color:var(--apagado);margin:12px 0 0;line-height:1.5">'+
-          'As viagens entram no pagamento e saem do "a pagar". O motorista passa a ver como recebido.</p></div>';
-    }
-    h += '</div>';
+    h += '<div class="pagar"><div class="avatar">'+esc(String(m.nome).trim().charAt(0).toUpperCase())+'</div>'+
+      '<div class="pagar-info"><b>'+esc(m.nome)+'</b><span class="tab">'+plural(dele.length, "viagem", "viagens")+
+        ' · <strong>'+moeda(soma(dele))+'</strong> · desde '+curto(datas[0])+'</span></div>'+
+      '<button class="btn-pix" data-acao="abrirFechamento" data-id="'+esc(m.id)+'">Fechar PIX</button></div>';
   }
 
-  // ——— histórico de pagamentos ———
-  h += '<p class="dia" style="font-size:20px;margin:24px 0 8px">Pagamentos</p>';
-  if(!pgs.length) h += '<p style="font-size:14px;color:var(--apagado)">Nenhum pagamento fechado ainda.</p>';
-  for(const p of pgs.slice(0,20)){
-    h += '<div class="viagem">'+
-      '<span style="flex:1;font-size:14px">'+esc(p.nome)+
-        '<br><span style="font-size:12px;color:var(--apagado)">'+curto(p.de)+' a '+curto(p.ate)+' · '+
-        p.qtd+(p.qtd===1?" viagem":" viagens")+' · pago em '+esc(String(p.pagoEm).split(" ")[0])+'</span>'+
-        (p.e2e?'<span class="codigo">PIX '+esc(p.e2e)+'</span>':'')+
-        '<span style="display:block;margin-top:4px">'+
-          (p.comprovante
-            ? '<a class="link" style="color:var(--volta)" href="'+esc(linkComprovante(p.comprovante))+'" target="_blank" rel="noopener">ver comprovante</a>'
-            : '<button class="link" style="color:var(--ida)" data-acao="escolherArquivo" data-para="'+esc(p.id)+'">anexar comprovante</button>')+
-        '</span></span>'+
-      '<span class="valor" style="color:var(--volta)">'+moeda(p.valor)+'</span>'+
-      '<button class="acao mini" data-acao="desfazerPagamento" data-id="'+esc(p.id)+'">desfazer</button></div>';
-  }
-
-  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:20px 0">'+
-    '<button class="acao" data-acao="csvViagens">Copiar viagens</button>'+
-    '<button class="acao" data-acao="csvPagamentos">Copiar pagamentos</button>'+
-    '<button class="acao" data-acao="recarregar">Atualizar</button>'+
-    '<button class="acao" data-acao="testar">Testar conexão</button></div>';
-
+  // ——— exportar ———
+  h += '<div class="titulo-sec"><span>Exportar dados</span></div>'+
+    '<div class="grade2"><button class="btn-sec" data-acao="csvViagens">'+IC.prancheta+'Copiar viagens</button>'+
+    '<button class="btn-sec" data-acao="csvPagamentos">'+IC.arquivo+'Copiar pagtos</button>'+
+    '<button class="btn-sec" data-acao="recarregar">'+IC.girar+'Atualizar</button>'+
+    '<button class="btn-sec" data-acao="testar">⚡ Testar conexão</button></div>';
   if(E.diagnostico) h += '<pre>'+esc(E.diagnostico)+'</pre>';
   if(E.csv) h += '<pre>'+esc(E.csv)+'</pre>';
 
-  // ——— cadastro ———
-  h += '<p class="dia" style="font-size:20px;margin-bottom:8px">Motoristas</p>';
-  for(const m of (d.motoristas||[])){
-    h += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--linha)">'+
-      '<span style="flex:1;font-size:15px">'+esc(m.nome)+
-        '<br><span style="font-size:12px;color:var(--apagado)">tarifa '+moeda(m.tarifa)+'</span></span>'+
-      '<button class="acao mini" data-acao="copiarLink" data-id="'+m.id+'">link</button>'+
-      '<button class="acao mini" data-acao="tarifa" data-id="'+m.id+'" data-tarifa="'+m.tarifa+'">tarifa</button>'+
-      '<button class="acao mini" data-acao="rmMotorista" data-id="'+m.id+'">remover</button></div>';
-  }
-  h += '<div style="display:flex;gap:8px;margin:12px 0 26px;flex-wrap:wrap">'+
-    '<input id="nMotorista" class="campo" placeholder="Nome" style="flex:1;min-width:120px">'+
-    '<input id="nTarifa" class="campo" inputmode="decimal" placeholder="Tarifa" style="width:96px">'+
-    '<button class="acao" data-acao="addMotorista">Adicionar</button></div>';
+  // ——— histórico de pagamentos ———
+  h += '<div class="titulo-sec"><span>Histórico de pagamentos PIX</span></div>';
+  if(!pgs.length) h += '<p class="vazio">Nenhum pagamento fechado ainda.</p>';
+  for(const p of pgs.slice(0,20)) h += itemPagamento(p, true);
 
-  h += '<p class="dia" style="font-size:20px;margin-bottom:8px">Viagens de '+rotuloMes(E.mes)+'</p>';
+  // ——— cadastro ———
+  h += '<div class="titulo-sec"><span>Motoristas cadastrados</span>'+
+    '<button class="link-forte" data-acao="alternarCadastro">'+(E.cadastroAberto?"fechar":"+ Adicionar")+'</button></div>';
+  if(E.cadastroAberto){
+    h += '<div class="bloco"><div class="grupo"><label class="rot" for="nMotorista">Nome</label>'+
+      '<input id="nMotorista" class="campo" placeholder="Nome do motorista"></div>'+
+      '<div class="grupo"><label class="rot" for="nTarifa">Tarifa por viagem (R$)</label>'+
+      '<input id="nTarifa" class="campo" inputmode="decimal" placeholder="Ex: 50"></div>'+
+      '<button class="btn-principal" data-acao="addMotorista">Cadastrar motorista</button></div>';
+  }
+  for(const m of (d.motoristas||[])){
+    h += '<div class="motorista-linha"><div style="min-width:0"><strong>'+esc(m.nome)+'</strong>'+
+      '<span class="chip">?m='+esc(m.id)+'</span> <span class="tab" style="font-size:.72rem;color:var(--muted)">tarifa '+moeda(m.tarifa)+'</span></div>'+
+      '<div class="acoes-linha">'+
+        '<button class="btn-icone" data-acao="whats" data-id="'+esc(m.id)+'" data-nome="'+esc(m.nome)+'" title="Enviar link pelo WhatsApp" aria-label="Enviar link pelo WhatsApp">'+IC.zap+'</button>'+
+        '<button class="btn-icone" data-acao="copiarLink" data-id="'+esc(m.id)+'" title="Copiar link" aria-label="Copiar link">'+IC.link+'</button>'+
+        '<button class="btn-icone" data-acao="tarifa" data-id="'+esc(m.id)+'" data-tarifa="'+esc(m.tarifa)+'" title="Mudar tarifa" aria-label="Mudar tarifa">'+IC.lapis+'</button>'+
+        '<button class="btn-icone" data-acao="rmMotorista" data-id="'+esc(m.id)+'" title="Remover" aria-label="Remover motorista">'+IC.lixo+'</button>'+
+      '</div></div>';
+  }
+
+  h += '<div class="titulo-sec"><span>Viagens de '+mesLongo(E.mes)+'</span></div>';
   h += listar(vs, {nome:true, cancelar:"cancelarG"});
-  h += '<p style="margin-top:26px"><button class="acao" data-acao="sairGestor">Sair do painel</button></p>';
   return h;
 }
 
 function listar(vs, op){
-  if(!vs.length) return '<p style="font-size:14px;color:var(--apagado)">Nenhuma viagem neste mês.</p>';
-  const dias = {};
-  vs.forEach(v => { (dias[v.data] = dias[v.data] || []).push(v); });
+  if(!vs.length) return '<p class="vazio">Nenhuma viagem neste mês.</p>';
   let h = "";
-  for(const d of Object.keys(dias).sort((a,b)=>b.localeCompare(a))){
-    h += '<div style="margin-bottom:16px"><p class="dia">'+rotuloDia(d)+' · '+moeda(soma(dias[d]))+'</p>';
-    for(const v of dias[d]){
-      const t = TIPOS[v.tipo] || TIPOS.extra;
-      const pago = !!v.pagamento;
-      const meio = [op.nome ? v.nome : "", v.descricao].filter(Boolean).join(" · ");
-      // viagem paga não se cancela; motorista só cancela o que lançou hoje
-      const podeCancelar = !pago && (op.cancelar === "cancelarG" ||
-        (E.dados && E.dados.hoje && String(v.enviado).indexOf(E.dados.hoje) === 0));
-      h += '<div class="viagem"'+(pago?' style="opacity:.62"':'')+'>'+
-        '<span class="hora">'+esc(v.hora)+'</span>'+
-        '<span class="tipo" style="color:'+t.cor+'">'+t.sigla+'</span>'+
-        '<span class="meio">'+esc(meio)+(pago?'<span class="selo">pago</span>':'')+'</span>'+
-        '<span class="valor">'+moeda(v.valor)+'</span>'+
-        (podeCancelar ? '<button class="acao mini" data-acao="'+op.cancelar+'" data-id="'+esc(v.id)+'">cancelar</button>' : '')+
-      '</div>';
-    }
-    h += '</div>';
+  for(const v of vs){
+    const tipo = TIPOS[v.tipo] ? v.tipo : "extra";
+    const pago = !!v.pagamento;
+    const meio = [op.nome ? v.nome : "", v.descricao].filter(Boolean).join(" · ");
+    // viagem paga não se cancela; motorista só cancela o que lançou hoje
+    const podeCancelar = !pago && (op.cancelar === "cancelarG" ||
+      (E.dados && E.dados.hoje && String(v.enviado).indexOf(E.dados.hoje) === 0));
+    h += '<div class="item'+(pago?' pago':'')+'">'+
+      '<div class="item-esq"><span class="tag '+tipo+'">'+TIPOS[tipo].sigla+'</span><div style="min-width:0">'+
+        '<strong>'+diaCurto(v.data)+' <span class="tab" style="font-weight:400;color:var(--muted)">'+esc(v.hora)+'</span></strong>'+
+        (meio?'<span class="sub">'+esc(meio)+'</span>':'')+'</div></div>'+
+      '<div class="item-dir"><div><b class="tab">'+moeda(v.valor)+'</b>'+(pago?'<small style="color:var(--pix)">pago</small>':'')+'</div>'+
+        (podeCancelar ? '<button class="mini" data-acao="'+op.cancelar+'" data-id="'+esc(v.id)+'">cancelar</button>' : '')+
+      '</div></div>';
+  }
+  return h;
+}
+
+/* folha que sobe de baixo: EXTRA, fechamento PIX ou detalhe de um pagamento */
+function folha(){
+  let corpo = "";
+  if(E.token && E.extraAberto) corpo = folhaExtra();
+  else if(E.liberado && E.fechando) corpo = folhaFechamento();
+  else if(E.detalhe) corpo = folhaPagamento();
+  if(!corpo) return "";
+  const entra = E.folhaNova ? " entra" : "";
+  return '<div class="fundo-folha'+entra+'" data-acao="fecharFolha"></div>'+
+    '<div class="folha'+entra+'" role="dialog" aria-modal="true">'+
+    '<button class="alca" data-acao="fecharFolha" aria-label="Fechar"></button>'+corpo+'</div>';
+}
+
+function folhaExtra(){
+  const c = E.carimbo;
+  return '<h3>✦ Registrar viagem EXTRA</h3><p>Para corridas fora da rotina de ida e volta.</p>'+
+    '<div class="grupo"><label class="rot" for="eValor">Valor da corrida (R$)</label>'+
+      '<input id="eValor" class="campo tab" inputmode="decimal" placeholder="Ex: 70" value="'+esc(E.extra.valor)+'"></div>'+
+    '<div class="grupo"><label class="rot" for="eDesc">Descrição / motivo</label>'+
+      '<input id="eDesc" class="campo" placeholder="O que foi essa viagem?" value="'+esc(E.extra.desc)+'"></div>'+
+    '<div class="grupo"><label class="rot">Dia e horário</label><div class="grade2">'+
+      '<input type="date" id="xData" class="campo" value="'+c.data+'" aria-label="dia">'+
+      '<input type="time" id="xHora" class="campo" value="'+c.hora+'" aria-label="horário"></div></div>'+
+    '<button class="btn-principal" data-acao="salvarExtra" '+(E.ocupado?"disabled":"")+'>✦ Confirmar registro EXTRA</button>';
+}
+
+function folhaFechamento(){
+  const m = (E.dados.motoristas||[]).find(x => x.id === E.fechando.id) || {nome:""};
+  const dele = (E.dados.abertas||[]).filter(v => v.motorista === E.fechando.id);
+  const entram = dele.filter(v => v.data <= E.fechando.ate);
+  return '<h3>Fechar pagamento — '+esc(m.nome)+'</h3><p>Pagamento sempre por PIX.</p>'+
+    '<div class="bloco"><label class="rot" for="fAte">Fechar viagens até o dia</label>'+
+      '<input type="date" id="fAte" class="campo" value="'+esc(E.fechando.ate)+'">'+
+      '<div class="resumo"><span>Entram no pagamento:</span><b class="tab">'+plural(entram.length, "viagem", "viagens")+' · '+moeda(soma(entram))+'</b></div></div>'+
+    '<div class="bloco"><label class="rot" for="fE2E">Código E2E do PIX (obrigatório)</label>'+
+      '<input id="fE2E" class="campo mono" autocomplete="off" autocapitalize="characters" spellcheck="false" '+
+        'placeholder="E00000000202610021200..." value="'+esc(E.fechando.e2e||"")+'">'+
+      '<p class="ajuda">Está no comprovante do banco: começa com E e tem 32 caracteres.</p>'+
+      '<label class="rot" style="margin-top:14px">Comprovante (PDF ou foto, opcional)</label>'+
+      (E.fechando.arquivo
+        ? '<div class="resumo" style="margin-top:0"><span style="overflow-wrap:anywhere;color:var(--texto)">'+IC.clipe.replace('<svg','<svg width="14" height="14"')+' '+esc(E.fechando.arquivo.name)+'</span>'+
+          '<button class="mini" data-acao="tirarArquivo">tirar</button></div>'
+        : '<button class="btn-sec" style="width:100%" data-acao="escolherArquivo" data-para="fechamento">'+IC.clipe+'Escolher arquivo</button>')+
+    '</div>'+
+    '<div class="lembrete">As viagens saem do "a pagar" e o motorista passa a ver como recebido. O comprovante vai para a pasta privada do Drive.</div>'+
+    '<button class="btn-principal" data-acao="confirmarFechamento" data-id="'+esc(E.fechando.id)+'" '+(E.ocupado?"disabled":"")+'>Confirmar pagamento PIX</button>';
+}
+
+function folhaPagamento(){
+  const p = (E.dados && E.dados.pagamentos || []).find(x => String(x.id) === String(E.detalhe));
+  if(!p) return "";
+  const gestor = !E.token;
+  let h = '<div class="recibo"><div class="recibo-icone'+(gestor && p.comprovante?' doc':'')+'">'+(gestor && p.comprovante ? IC.doc : IC.check)+'</div>'+
+    '<h3>Pagamento PIX</h3><p style="font-size:.8rem;color:var(--muted);margin:0">'+curto(p.de)+' a '+curto(p.ate)+'</p></div>'+
+    '<div class="linhas">'+
+      (gestor?'<div><span>Motorista</span><b>'+esc(p.nome)+'</b></div>':'')+
+      '<div><span>Valor pago</span><b class="tab" style="color:var(--pix)">'+moeda(p.valor)+'</b></div>'+
+      '<div><span>Viagens</span><b class="tab">'+esc(p.qtd)+'</b></div>'+
+      '<div><span>Pago em</span><b class="tab">'+esc(p.pagoEm)+'</b></div>'+
+    '</div>';
+  if(p.e2e) h += '<label class="rot">ID da transação (E2E)</label><div class="e2e">'+esc(p.e2e)+'</div>'+
+    '<button class="btn-sec" style="width:100%;margin-top:8px" data-acao="copiarE2E" data-e2e="'+esc(p.e2e)+'">Copiar código E2E</button>';
+  else h += '<p class="ajuda">Pagamento fechado antes da versão 5, sem código E2E.</p>';
+  // o motorista vê o E2E, nunca o arquivo do comprovante
+  if(gestor){
+    h += '<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">'+
+      (p.comprovante
+        ? '<a class="btn-sec" href="'+esc(linkComprovante(p.comprovante))+'" target="_blank" rel="noopener">'+IC.play+'Ver comprovante</a>'+
+          '<button class="btn-sec" data-acao="escolherArquivo" data-para="'+esc(p.id)+'">'+IC.clipe+'Trocar comprovante</button>'
+        : '<button class="btn-sec" data-acao="escolherArquivo" data-para="'+esc(p.id)+'">'+IC.clipe+'Anexar comprovante</button>')+
+      '<button class="btn-perigo" data-acao="desfazerPagamento" data-id="'+esc(p.id)+'">Desfazer pagamento</button></div>';
   }
   return h;
 }
@@ -534,7 +871,27 @@ const ACOES = {
     const d = document.getElementById("cData"), h = document.getElementById("cHora");
     if(d && d.value) E.carimbo.data = d.value;
     if(h && h.value) E.carimbo.hora = h.value;
-    E.carimbo.manual = false; pintar();
+    // horário escolhido à mão não é atropelado pelo relógio até a próxima viagem
+    E.carimbo.manual = false; E.carimbo.mexido = E.carimbo.data !== hojeISO() || E.carimbo.hora !== agoraHM(); pintar();
+  },
+  carimboAgora(){ E.carimbo = {data: hojeISO(), hora: agoraHM(), manual:false}; pintar(); },
+  tema(){
+    const ordem = ["auto","escuro","claro"];
+    TEMA = ordem[(ordem.indexOf(TEMA) + 1) % ordem.length];
+    try { localStorage.setItem("cf_tema", TEMA); } catch(e){}
+    aplicarTema(); pintar();
+  },
+  fecharFolha(){ if(E.ocupado) return; E.extraAberto = false; E.fechando = null; E.detalhe = null; pintar(); },
+  verPagamento(b){ E.detalhe = b.dataset.id; E.folhaNova = true; pintar(); },
+  copiarE2E(b){
+    if(navigator.clipboard) navigator.clipboard.writeText(b.dataset.e2e).catch(()=>{});
+    E.aviso = "Código E2E copiado."; E.avisoBom = true; pintar();
+  },
+  alternarCadastro(){ E.cadastroAberto = !E.cadastroAberto; pintar(); },
+  whats(b){
+    const url = location.origin + location.pathname + "?m=" + b.dataset.id;
+    const texto = "Olá " + b.dataset.nome + "! Este é o seu link para registrar as viagens da Couve Flor: " + url;
+    window.open("https://wa.me/?text=" + encodeURIComponent(texto), "_blank", "noopener");
   },
   mes(b){ E.mes = mover(E.mes, Number(b.dataset.passo)); E.csv = null; E.diagnostico = null; carregar(); },
   recarregar(){ E.aviso = null; E.diagnostico = null; E.podeRepetir = false; carregar(); },
@@ -542,13 +899,12 @@ const ACOES = {
   tocar(b){
     if(E.ocupado) return;
     const tipo = b.dataset.tipo;
-    if(tipo === "extra"){ E.extraAberto = true; pintar(); return; }
+    if(tipo === "extra"){ E.extraAberto = true; E.folhaNova = true; pintar(); return; }
     registrar(tipo, null, "");
   },
-  cancelarExtra(){ E.extraAberto = false; pintar(); },
   salvarExtra(){
-    const v = (document.getElementById("eValor")||{}).value || "";
-    const d = ((document.getElementById("eDesc")||{}).value || "").trim();
+    const v = E.extra.valor;
+    const d = E.extra.desc.trim();
     if(!Number(String(v).replace(",","."))){ E.aviso = "Informe o valor da viagem extra."; E.avisoBom = false; return pintar(); }
     if(!d){ E.aviso = "Escreva uma descrição curta da viagem extra."; E.avisoBom = false; return pintar(); }
     registrar("extra", v, d);
@@ -565,7 +921,7 @@ const ACOES = {
 
   abrirFechamento(b){
     E.fechando = {id: b.dataset.id, ate: (E.dados.hojeISO || hojeISO())};
-    E.csv = null; pintar();
+    E.csv = null; E.folhaNova = true; pintar();
   },
   cancelarFechamento(){ E.fechando = null; pintar(); },
   async confirmarFechamento(b){
@@ -605,7 +961,7 @@ const ACOES = {
     E.ocupado = true; E.aviso = "Desfazendo…"; E.avisoBom = true; pintar();
     try{
       const r = await chamar({acao:"desfazer_pagamento", pin:E.pin, id:b.dataset.id}, 2);
-      if(r.ok){ E.aviso = "Pagamento desfeito."; E.avisoBom = true; await carregar(); }
+      if(r.ok){ E.detalhe = null; E.aviso = "Pagamento desfeito."; E.avisoBom = true; await carregar(); }
       else { E.aviso = r.erro; E.avisoBom = false; E.ocupado = false; pintar(); }
     } catch(e){ E.aviso = "Não deu para desfazer agora: "+e.message; E.avisoBom = false; E.ocupado = false; pintar(); }
   },
@@ -623,11 +979,11 @@ const ACOES = {
   },
 
   souMotorista(){ E.papel = "motorista"; pintar(); },
-  souGestor(){ E.papel = "gestor"; pintar(); },
-  voltarEscolha(){ E.papel = null; E.diagnostico = null; pintar(); },
+  souGestor(){ E.papel = "gestor"; E.pinDigitado = ""; pintar(); },
+  voltarEscolha(){ E.papel = null; E.diagnostico = null; E.aviso = null; pintar(); },
 
   criarPin(){
-    const p = (document.getElementById("pin")||{}).value || "";
+    const p = E.pinDigitado; E.pinDigitado = "";
     if(!/^\d{4}$/.test(p)){ E.aviso = "O PIN precisa ter 4 dígitos."; E.avisoBom = false; return pintar(); }
     chamar({acao:"definir_pin", pin:p}).then(r => {
       if(r.ok){ E.pin = p; E.semPin = false; E.liberado = true; guardarPin(p); carregar(); }
@@ -635,7 +991,7 @@ const ACOES = {
     }).catch(e => { E.aviso = e.message; E.avisoBom = false; pintar(); });
   },
   entrar(){
-    E.pin = (document.getElementById("pin")||{}).value || "";
+    E.pin = E.pinDigitado; E.pinDigitado = "";
     E.aviso = null; carregar();
   },
 
@@ -684,7 +1040,7 @@ const ACOES = {
     const t = (document.getElementById("nTarifa")||{}).value || "";
     if(!n.trim() || !Number(String(t).replace(",","."))){ E.aviso = "Informe nome e tarifa."; E.avisoBom = false; return pintar(); }
     chamar({acao:"add_motorista", pin:E.pin, nome:n, tarifa:t}).then(r => {
-      if(r.ok){ E.aviso = "Motorista cadastrado. Use “link” para mandar o acesso dele."; E.avisoBom = true; }
+      if(r.ok){ E.cadastroAberto = false; E.aviso = "Motorista cadastrado. Use o botão do WhatsApp para mandar o link dele."; E.avisoBom = true; }
       else { E.aviso = r.erro; E.avisoBom = false; }
       carregar();
     }).catch(e => { E.aviso = e.message; E.avisoBom = false; pintar(); });
@@ -773,7 +1129,7 @@ async function registrar(tipo, valor, descricao){
   try{
     const r = await chamar(p);
     if(r.ok){
-      E.extraAberto = false;
+      E.extraAberto = false; E.extra = {valor:"", desc:""};
       E.carimbo = {data: hojeISO(), hora: agoraHM(), manual:false};
       E.aviso = TIPOS[tipo].rotulo + " registrada às " + p.hora + "."; E.avisoBom = true;
       await carregar();
@@ -782,7 +1138,8 @@ async function registrar(tipo, valor, descricao){
     }
   } catch(err){
     const f = fila(); f.push(p); setFila(f);
-    E.extraAberto = false;
+    E.extraAberto = false; E.extra = {valor:"", desc:""};
+    E.carimbo = {data: hojeISO(), hora: agoraHM(), manual:false};
     E.aviso = "Sem internet agora. A viagem ficou guardada no celular e sobe sozinha quando a conexão voltar.";
     E.avisoBom = true; E.ocupado = false; pintar();
   }
@@ -805,15 +1162,32 @@ document.getElementById("app").addEventListener("click", ev => {
 });
 document.getElementById("app").addEventListener("change", ev => {
   if(ev.target.id === "fAte" && E.fechando){ E.fechando.ate = ev.target.value; pintar(); }
+  // dia e horário escolhidos na folha da EXTRA valem para o registro
+  if((ev.target.id === "xData" || ev.target.id === "xHora") && ev.target.value){
+    E.carimbo[ev.target.id === "xData" ? "data" : "hora"] = ev.target.value; E.carimbo.mexido = true;
+  }
 });
-// a tela é redesenhada inteira a cada mudança: o E2E digitado precisa morar no estado
+// a tela é redesenhada inteira a cada mudança: o que foi digitado precisa morar no estado
 document.getElementById("app").addEventListener("input", ev => {
   if(ev.target.id === "fE2E" && E.fechando) E.fechando.e2e = ev.target.value;
+  if(ev.target.id === "eValor") E.extra.valor = ev.target.value;
+  if(ev.target.id === "eDesc") E.extra.desc = ev.target.value;
+  if(ev.target.id === "pinCampo"){
+    // redesenha só as casas, para o teclado do celular não fechar a cada dígito
+    E.pinDigitado = ev.target.value = ev.target.value.replace(/\D/g, "").slice(0, 4);
+    const n = E.pinDigitado.length;
+    ev.target.parentNode.querySelectorAll(".casa").forEach((c, i) => {
+      c.className = "casa" + (i < n ? " cheia" : "") + (i === n ? " cursor" : ""); c.textContent = i < n ? "•" : "";
+    });
+    const botao = document.querySelector('[data-acao="criarPin"]');
+    if(botao) botao.disabled = n < 4;
+    if(n === 4 && !E.semPin){ ev.target.blur(); ACOES.entrar(); }
+  }
 });
 // fica fora do #app para não ser apagado quando a tela é redesenhada
 document.getElementById("arquivo").addEventListener("change", ev => arquivoEscolhido(ev.target.files[0]));
 window.addEventListener("online", () => esvaziarFila().then(m => { if(m) carregar(); }));
-setInterval(() => { if(!E.carimbo.manual && !E.ocupado){ E.carimbo.data = hojeISO(); E.carimbo.hora = agoraHM(); } }, 20000);
+setInterval(() => { if(!E.carimbo.manual && !E.carimbo.mexido && !E.ocupado){ E.carimbo.data = hojeISO(); E.carimbo.hora = agoraHM(); } }, 20000);
 
 carregar();
 </script>

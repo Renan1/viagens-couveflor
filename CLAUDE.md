@@ -119,7 +119,16 @@ gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes d
 
 ## Estado em 2026-10-02
 
-- **No ar:** `index.html` 5.1 + `Code.gs` 5 (ping: 2 motoristas, 67 viagens). Drive
+- **Visual 6.0 (redesign v3, protótipo do dono):** tokens de cor `--bg`, `--surf`,
+  `--ida` etc. no `:root` (escuro padrão; claro pelo aparelho ou botão de tema, guardado
+  em `cf_tema`), fonte do sistema, ícone "carro de frente" (`ICONE` no código e
+  `icone-*.png`). EXTRA, fechamento PIX e detalhe do pagamento abrem em folha que sobe
+  de baixo (`folha()`). PIN: as casas são desenho sobre um campo invisível
+  (`#pinCampo`) que chama o teclado do celular — **teclado na tela foi rejeitado pelo
+  dono**; com 4 dígitos entra sozinho (criar PIN ainda pede botão). Ficou de fora do
+  protótipo o que não existe nos dados: leitura automática do E2E no PDF, chave PIX,
+  tarifas diferentes para IDA e VOLTA.
+- **No ar:** `index.html` 6.0 + `Code.gs` 5 (ping: 2 motoristas, 67 viagens). Drive
   autorizado; primeiro comprovante anexado com sucesso (pagamento fechado ainda na 4.1,
   sem E2E).
 - **Versão 5:** E2E obrigatório no fechamento, comprovante opcional (PDF ou foto
