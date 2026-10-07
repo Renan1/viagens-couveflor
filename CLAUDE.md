@@ -42,9 +42,11 @@ precisa. (A máquina do trabalho tem Node 24, o que viabiliza `clasp` — ver pe
 
 - **Viagens:** ID | Código (do motorista) | Motorista | Tipo | Data | Hora | Valor |
   Descrição | Enviado em | Pagamento
-- **Motoristas:** Código | Nome | Tarifa
+- **Motoristas:** Código | Nome | Tarifa | Chave PIX | Banco  *(Chave PIX e Banco a
+  partir do `Code.gs` 6)*
 - **Pagamentos:** ID | Código | Motorista | De | Até | Viagens | Valor | Pago em |
-  Observação | E2E | Comprovante  *(E2E e Comprovante a partir da versão 5)*
+  Observação | E2E | Comprovante | Tamanho  *(E2E e Comprovante a partir da versão 5;
+  Tamanho, em bytes, a partir da 6)*
 - **Ajustes:** Chave | Valor — `pin`, `pin_tentativas`, `pin_bloqueado_ate`,
   `pasta_comprovantes` (v5) e o antigo `pagos` (obsoleto).
 
@@ -163,26 +165,29 @@ gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes d
 
 ### Aprovadas, a fazer
 
-1. **Chave PIX e banco do motorista.** Aprovado. Proposta: aba Motoristas ganha colunas
-   no fim (`Chave PIX`, `Banco`), editadas pelo gestor no cadastro; a folha de
-   fechamento mostra a chave com "copiar" e o banco. Exige `Code.gs` novo (publicação
-   manual, ordem da seção acima). Detalhes a combinar antes de codar: o motorista vê a
-   própria chave? Validar formato da chave ou aceitar texto livre?
-   **Atenção:** o banco **não** sai do E2E — o ISPB embutido no E2E é o do banco de
-   **quem pagou** (sempre o Itaú da Couve Flor). O banco do motorista tem de ser
-   cadastrado junto com a chave.
-2. **Tamanho do arquivo do comprovante.** Aprovado ("se conseguir, pode seguir").
-   Gravar `bytes.length` no `anexar_comprovante` (coluna nova no fim de Pagamentos) e
-   mostrar no detalhe do pagamento. Pagamentos antigos ficam sem tamanho. Vai junto com
-   o item 1, no mesmo `Code.gs`.
-3. **Dashboard financeiro — decidido: arquivo pela pasta `entrada` do dashboard.** O
+1. **Chave PIX, banco e tamanho do comprovante — prontos no branch `chave-pix`
+   (`index.html` 6.1 + `Code.gs` 6), aguardando publicação.** Testados com respostas
+   simuladas, não contra o Google. Ordem: dono publica o `Code.gs` 6 → `ping` responde
+   `"versao":6` → juntar `chave-pix` ao `main`. Como ficou:
+   - Aba Motoristas ganha `Chave PIX` e `Banco` no fim (texto); aba Pagamentos ganha
+     `Tamanho` (bytes) no fim. As colunas entram sozinhas na primeira chamada.
+   - Chave em **texto livre**, só sem espaços (decisão do dono); banco livre.
+   - Gestor: botão "PIX" em cada motorista abre folha para editar/apagar; campos
+     opcionais no cadastro; a folha de fechamento mostra a chave com "copiar" e o banco;
+     o detalhe do pagamento mostra o tamanho do arquivo ao lado de "Ver comprovante".
+   - **O motorista vê a própria chave e o banco** (decisão do dono), para conferir.
+   - Servidor 5 com tela 6.1: avisa "servidor desatualizado" em vez de perder a chave.
+   - O banco **não** sai do E2E: o ISPB embutido é o de **quem pagou** (sempre o Itaú
+     da Couve Flor). Por isso é cadastrado junto com a chave.
+   - Pagamentos com comprovante anterior à v6 ficam sem tamanho.
+2. **Dashboard financeiro — decidido: arquivo pela pasta `entrada` do dashboard.** O
    `couveflor-dashboard` desligou a sincronização com Apps Script em 2026-09-28 (pouco
    confiável e insegura) e hoje recebe dados por arquivos em `entrada/<MÊS>/` no GitHub,
    processados por workflow. Caminho mais rápido e coerente: o CSV de pagamentos deste
    app entra por lá. O trabalho principal é **no repositório do dashboard** (o
    `tools/entrada.py` aprender a ler o CSV de transporte); deste lado, no máximo um
    botão "baixar CSV" além do "copiar". Não ler a planilha direto.
-4. **Testar a leitura de PDF com comprovante real** no próximo fechamento em que o
+3. **Testar a leitura de PDF com comprovante real** no próximo fechamento em que o
    banco gerar PDF.
 
 ### Adiadas pelo dono

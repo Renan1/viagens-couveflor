@@ -238,6 +238,7 @@
   .motorista-linha{background:var(--surf2);border:1px solid var(--borda);border-radius:var(--r-md);padding:10px 12px;display:flex;
                    align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:.8rem}
   .motorista-linha strong{display:block}
+  .pix-chave{font-family:var(--mono);font-size:.85rem;overflow-wrap:anywhere;color:var(--texto)}
   .chip{font-family:var(--mono);font-size:.72rem;background:var(--surf);padding:2px 6px;border-radius:4px;border:1px solid var(--borda);
         color:var(--volta);overflow-wrap:anywhere}
   .acoes-linha{display:flex;align-items:center;gap:2px;flex-shrink:0}
@@ -281,7 +282,7 @@
 const API = "https://script.google.com/macros/s/AKfycbyb3mIEaspqZPGhbWofnaqfZ7YwMV9URH0usuFylEIY7AFe8BKq2jlzzfMqZDyrpM4M/exec";
 /* ————————————————————————————————————————————————————————— */
 
-const VERSAO = "6.0";
+const VERSAO = "6.1";
 
 const TIPOS = {
   ida:   {sigla:"IDA",   rotulo:"Levar equipe",  sub:"casa → empresa", cor:"var(--ida)"},
@@ -306,6 +307,7 @@ const soma = l => l.reduce((s,v)=>s+Number(v.valor||0),0);
 // E2E do PIX: "E" + 31 letras ou números. Colado do app do banco às vezes vem com espaços.
 const normalizarE2E = v => { const e = String(v||"").replace(/\s+/g,""); return /^E[0-9A-Za-z]{31}$/.test(e) ? e : ""; };
 const linkComprovante = id => "https://drive.google.com/file/d/" + encodeURIComponent(id) + "/view";
+const tamanhoArquivo = b => !b ? "" : b < 1048576 ? Math.max(1, Math.round(b / 1024)) + " KB" : (b / 1048576).toFixed(1).replace(".", ",") + " MB";
 
 /* O atalho na tela inicial abre sem o "?m=", porque o Chrome usa o start_url do
    manifesto. Por isso o código do motorista fica guardado no próprio aparelho. */
@@ -366,6 +368,7 @@ const E = {
   detalhe: null,
   folhaNova: false,
   cadastroAberto: false,
+  pix: null,
   pinDigitado: "",
   pin: localStorage.getItem("cf_pin") || "",
   liberado: false,
@@ -623,6 +626,14 @@ function telaMotorista(){
     '<div class="receber-nota"><strong>'+plural(E.dados.abertoQtd||0, "viagem", "viagens")+'</strong>'+
     (E.dados.abertoDesde?'<br>desde '+curto(E.dados.abertoDesde):'<br>em aberto')+'</div></div></div>';
 
+  // o motorista vê a própria chave para conferir se o gestor cadastrou certo
+  h += '<div class="card" style="margin-top:12px"><div class="rot-mini">Sua chave PIX</div>'+
+    (E.dados.chave
+      ? '<div class="pix-chave" style="margin-top:4px">'+esc(E.dados.chave)+'</div>'+
+        (E.dados.banco ? '<p class="ajuda">'+esc(E.dados.banco)+'</p>' : '')+
+        '<p class="ajuda">Confira. Se estiver errada, avise o gestor antes do próximo pagamento.</p>'
+      : '<p class="ajuda">Ainda não cadastrada. Mande sua chave PIX para o gestor.</p>')+'</div>';
+
   const pgs = (E.dados.pagamentos||[]).slice().sort((a,b)=>String(b.ate).localeCompare(String(a.ate)));
   if(pgs.length){
     h += '<div class="titulo-sec"><span>Pagamentos recebidos</span></div>';
@@ -750,12 +761,19 @@ function telaGestor(){
       '<input id="nMotorista" class="campo" placeholder="Nome do motorista"></div>'+
       '<div class="grupo"><label class="rot" for="nTarifa">Tarifa por viagem (R$)</label>'+
       '<input id="nTarifa" class="campo" inputmode="decimal" placeholder="Ex: 50"></div>'+
+      '<div class="grupo"><label class="rot" for="nChave">Chave PIX (opcional)</label>'+
+      '<input id="nChave" class="campo mono" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="CPF, e-mail, celular ou aleatória"></div>'+
+      '<div class="grupo"><label class="rot" for="nBanco">Banco (opcional)</label>'+
+      '<input id="nBanco" class="campo" placeholder="Ex: Nubank"></div>'+
       '<button class="btn-principal" data-acao="addMotorista">Cadastrar motorista</button></div>';
   }
   for(const m of (d.motoristas||[])){
     h += '<div class="motorista-linha"><div style="min-width:0"><strong>'+esc(m.nome)+'</strong>'+
-      '<span class="chip">?m='+esc(m.id)+'</span> <span class="tab" style="font-size:.72rem;color:var(--muted)">tarifa '+moeda(m.tarifa)+'</span></div>'+
+      '<span class="chip">?m='+esc(m.id)+'</span> <span class="tab" style="font-size:.72rem;color:var(--muted)">tarifa '+moeda(m.tarifa)+'</span>'+
+      '<span class="ajuda" style="display:block;margin-top:4px;overflow-wrap:anywhere">'+
+        (m.chave ? 'PIX '+esc(m.chave)+(m.banco ? ' · '+esc(m.banco) : '') : '<span style="color:var(--ida)">sem chave PIX</span>')+'</span></div>'+
       '<div class="acoes-linha">'+
+        '<button class="mini" data-acao="editarPix" data-id="'+esc(m.id)+'" title="Chave PIX e banco" aria-label="Chave PIX e banco">PIX</button>'+
         '<button class="btn-icone" data-acao="whats" data-id="'+esc(m.id)+'" data-nome="'+esc(m.nome)+'" title="Enviar link pelo WhatsApp" aria-label="Enviar link pelo WhatsApp">'+IC.zap+'</button>'+
         '<button class="btn-icone" data-acao="copiarLink" data-id="'+esc(m.id)+'" title="Copiar link" aria-label="Copiar link">'+IC.link+'</button>'+
         '<button class="btn-icone" data-acao="tarifa" data-id="'+esc(m.id)+'" data-tarifa="'+esc(m.tarifa)+'" title="Mudar tarifa" aria-label="Mudar tarifa">'+IC.lapis+'</button>'+
@@ -794,6 +812,7 @@ function folha(){
   let corpo = "";
   if(E.token && E.extraAberto) corpo = folhaExtra();
   else if(E.liberado && E.fechando) corpo = folhaFechamento();
+  else if(E.liberado && E.pix) corpo = folhaPix();
   else if(E.detalhe) corpo = folhaPagamento();
   if(!corpo) return "";
   const entra = E.folhaNova ? " entra" : "";
@@ -821,6 +840,12 @@ function folhaFechamento(){
   const entram = dele.filter(v => v.data <= E.fechando.ate);
   E.fechando.total = soma(entram); // a leitura do PDF confere este valor
   return '<h3>Fechar pagamento — '+esc(m.nome)+'</h3><p>Pagamento sempre por PIX.</p>'+
+    '<div class="bloco"><label class="rot">Chave PIX de '+esc(m.nome)+'</label>'+
+      (m.chave
+        ? '<div class="resumo" style="margin-top:0"><span class="pix-chave">'+esc(m.chave)+'</span>'+
+            '<button class="mini" data-acao="copiarChave" data-chave="'+esc(m.chave)+'">copiar</button></div>'+
+          (m.banco ? '<p class="ajuda">'+esc(m.banco)+'</p>' : '')
+        : '<p class="ajuda">Sem chave cadastrada. Cadastre em Motoristas, no botão PIX.</p>')+'</div>'+
     '<div class="bloco"><label class="rot" for="fAte">Fechar viagens até o dia</label>'+
       '<input type="date" id="fAte" class="campo" value="'+esc(E.fechando.ate)+'">'+
       '<div class="resumo"><span>Entram no pagamento:</span><b class="tab">'+plural(entram.length, "viagem", "viagens")+' · '+moeda(soma(entram))+'</b></div></div>'+
@@ -838,6 +863,18 @@ function folhaFechamento(){
     '</div>'+
     '<div class="lembrete">As viagens saem do "a pagar" e o motorista passa a ver como recebido. O comprovante vai para a pasta privada do Drive.</div>'+
     '<button class="btn-principal" data-acao="confirmarFechamento" data-id="'+esc(E.fechando.id)+'" '+(E.ocupado?"disabled":"")+'>Confirmar pagamento PIX</button>';
+}
+
+function folhaPix(){
+  const m = (E.dados.motoristas||[]).find(x => x.id === E.pix.id) || {nome:""};
+  return '<h3>Chave PIX — '+esc(m.nome)+'</h3>'+
+    '<p>CPF, CNPJ, e-mail, celular ou chave aleatória. O motorista vê a chave cadastrada no app dele.</p>'+
+    '<div class="grupo"><label class="rot" for="pChave">Chave PIX</label>'+
+      '<input id="pChave" class="campo mono" autocomplete="off" autocapitalize="off" spellcheck="false" value="'+esc(E.pix.chave)+'"></div>'+
+    '<div class="grupo"><label class="rot" for="pBanco">Banco</label>'+
+      '<input id="pBanco" class="campo" placeholder="Ex: Nubank" value="'+esc(E.pix.banco)+'"></div>'+
+    '<p class="ajuda" style="margin-bottom:12px">Deixe em branco para apagar.</p>'+
+    '<button class="btn-principal" data-acao="salvarPix" '+(E.ocupado?"disabled":"")+'>Salvar chave PIX</button>';
 }
 
 function folhaPagamento(){
@@ -859,7 +896,8 @@ function folhaPagamento(){
   if(gestor){
     h += '<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">'+
       (p.comprovante
-        ? '<a class="btn-sec" href="'+esc(linkComprovante(p.comprovante))+'" target="_blank" rel="noopener">'+IC.play+'Ver comprovante</a>'+
+        ? '<a class="btn-sec" href="'+esc(linkComprovante(p.comprovante))+'" target="_blank" rel="noopener">'+IC.play+'Ver comprovante'+
+            (p.tamanho ? ' <span style="font-weight:400;color:var(--muted)">· '+tamanhoArquivo(p.tamanho)+'</span>' : '')+'</a>'+
           '<button class="btn-sec" data-acao="escolherArquivo" data-para="'+esc(p.id)+'">'+IC.clipe+'Trocar comprovante</button>'
         : '<button class="btn-sec" data-acao="escolherArquivo" data-para="'+esc(p.id)+'">'+IC.clipe+'Anexar comprovante</button>')+
       '<button class="btn-perigo" data-acao="desfazerPagamento" data-id="'+esc(p.id)+'">Desfazer pagamento</button></div>';
@@ -885,7 +923,7 @@ const ACOES = {
     try { localStorage.setItem("cf_tema", TEMA); } catch(e){}
     aplicarTema(); pintar();
   },
-  fecharFolha(){ if(E.ocupado) return; E.extraAberto = false; E.fechando = null; E.detalhe = null; pintar(); },
+  fecharFolha(){ if(E.ocupado) return; E.extraAberto = false; E.fechando = null; E.detalhe = null; E.pix = null; pintar(); },
   verPagamento(b){ E.detalhe = b.dataset.id; E.folhaNova = true; pintar(); },
   copiarE2E(b){
     if(navigator.clipboard) navigator.clipboard.writeText(b.dataset.e2e).catch(()=>{});
@@ -1039,12 +1077,40 @@ const ACOES = {
     if(navigator.clipboard) navigator.clipboard.writeText(url).catch(()=>{});
     E.aviso = "Link copiado: " + url; E.avisoBom = true; pintar();
   },
+  editarPix(b){
+    const m = (E.dados.motoristas||[]).find(x => x.id === b.dataset.id);
+    if(!m) return;
+    E.pix = {id: m.id, chave: m.chave || "", banco: m.banco || ""}; E.folhaNova = true; pintar();
+  },
+  async salvarPix(){
+    E.ocupado = true; pintar();
+    try{
+      const r = await chamar({acao:"edit_motorista", pin:E.pin, id:E.pix.id, chave:E.pix.chave, banco:E.pix.banco}, 2);
+      if(!r.ok){ E.aviso = r.erro; E.avisoBom = false; E.ocupado = false; return pintar(); }
+      // servidor da versão 5 responde ok sem gravar a chave: avisar em vez de perder calado
+      if(r.chave === undefined){ E.aviso = "O servidor está desatualizado e não guardou a chave. Publique o Code.gs versão 6."; E.avisoBom = false; }
+      else { E.aviso = r.chave ? "Chave PIX salva." : "Chave PIX apagada."; E.avisoBom = true; }
+      E.pix = null;
+      await carregar();
+    } catch(e){ E.aviso = "Não deu para salvar agora: " + e.message; E.avisoBom = false; E.ocupado = false; pintar(); }
+  },
+  copiarChave(b){
+    if(navigator.clipboard) navigator.clipboard.writeText(b.dataset.chave).catch(()=>{});
+    E.aviso = "Chave PIX copiada."; E.avisoBom = true; pintar();
+  },
   addMotorista(){
     const n = (document.getElementById("nMotorista")||{}).value || "";
     const t = (document.getElementById("nTarifa")||{}).value || "";
+    const chave = (document.getElementById("nChave")||{}).value || "";
+    const banco = (document.getElementById("nBanco")||{}).value || "";
     if(!n.trim() || !Number(String(t).replace(",","."))){ E.aviso = "Informe nome e tarifa."; E.avisoBom = false; return pintar(); }
-    chamar({acao:"add_motorista", pin:E.pin, nome:n, tarifa:t}).then(r => {
-      if(r.ok){ E.cadastroAberto = false; E.aviso = "Motorista cadastrado. Use o botão do WhatsApp para mandar o link dele."; E.avisoBom = true; }
+    chamar({acao:"add_motorista", pin:E.pin, nome:n, tarifa:t, chave:chave, banco:banco}).then(r => {
+      if(r.ok){
+        E.cadastroAberto = false;
+        E.aviso = "Motorista cadastrado. Use o botão do WhatsApp para mandar o link dele.";
+        if(chave.trim() && r.chave === undefined) E.aviso += " A chave PIX não foi guardada: publique o Code.gs versão 6.";
+        E.avisoBom = true;
+      }
       else { E.aviso = r.erro; E.avisoBom = false; }
       carregar();
     }).catch(e => { E.aviso = e.message; E.avisoBom = false; pintar(); });
@@ -1287,6 +1353,8 @@ document.getElementById("app").addEventListener("input", ev => {
   }
   if(ev.target.id === "eValor") E.extra.valor = ev.target.value;
   if(ev.target.id === "eDesc") E.extra.desc = ev.target.value;
+  if(ev.target.id === "pChave" && E.pix) E.pix.chave = ev.target.value;
+  if(ev.target.id === "pBanco" && E.pix) E.pix.banco = ev.target.value;
   if(ev.target.id === "pinCampo"){
     // redesenha só as casas, para o teclado do celular não fechar a cada dígito
     E.pinDigitado = ev.target.value = ev.target.value.replace(/\D/g, "").slice(0, 4);

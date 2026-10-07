@@ -1,5 +1,5 @@
 /**
- * Controle de viagens — Couve Flor Refeições  (versão 5)
+ * Controle de viagens — Couve Flor Refeições  (versão 6)
  * Publicar como aplicativo web: Executar como "Eu" | Acesso "Qualquer pessoa".
  * Depois de qualquer alteração aqui: Implantar -> Gerenciar implantações -> lápis -> Nova versão.
  *
@@ -9,9 +9,12 @@
  * Versão 5: todo pagamento é PIX e guarda o código E2E da transação. O comprovante
  * (PDF ou imagem) fica numa pasta privada do Drive de quem publica o script; o
  * motorista vê só o E2E, nunca o arquivo.
+ *
+ * Versão 6: chave PIX e banco do motorista (aba Motoristas) e tamanho do arquivo do
+ * comprovante (aba Pagamentos). As colunas novas entram no fim das abas.
  */
 
-var VERSAO = 5;
+var VERSAO = 6;
 var ABA_V = 'Viagens';
 var ABA_M = 'Motoristas';
 var ABA_A = 'Ajustes';
@@ -69,11 +72,14 @@ function formatarTexto(s, colunas) {
 
 var COL_V = ['ID', 'Código', 'Motorista', 'Tipo', 'Data', 'Hora', 'Valor', 'Descrição', 'Enviado em', 'Pagamento'];
 var COL_P = ['ID', 'Código', 'Motorista', 'De', 'Até', 'Viagens', 'Valor', 'Pago em', 'Observação',
-             'E2E', 'Comprovante'];
+             'E2E', 'Comprovante', 'Tamanho'];
 var TEXTO_P = [1, 2, 4, 5, 8, 10, 11];
+// chave PIX como texto: CPF perde zero à esquerda e celular "+55…" vira fórmula se o Google interpretar
+var COL_M = ['Código', 'Nome', 'Tarifa', 'Chave PIX', 'Banco'];
+var TEXTO_M = [1, 4, 5];
 
 function abaViagens() { return aba(ABA_V, COL_V, [1, 2, 4, 5, 6, 9, 10]); }
-function abaMotoristas() { return aba(ABA_M, ['Código', 'Nome', 'Tarifa'], [1]); }
+function abaMotoristas() { return aba(ABA_M, COL_M, TEXTO_M); }
 function abaAjustes() { return aba(ABA_A, ['Chave', 'Valor'], [1, 2]); }
 function abaPagamentos() { return aba(ABA_P, COL_P, TEXTO_P); }
 
@@ -113,8 +119,18 @@ function gravarAjuste(chave, valor) {
 
 function motoristas() {
   return linhas(abaMotoristas()).map(function (l) {
-    return { id: String(l[0]), nome: String(l[1]), tarifa: Number(l[2]) || 0 };
+    return { id: String(l[0]), nome: String(l[1]), tarifa: Number(l[2]) || 0,
+             chave: String(l[3] || ''), banco: String(l[4] || '') };
   });
+}
+
+/** Chave PIX em texto livre (CPF, CNPJ, e-mail, celular ou aleatória): só tira espaços. */
+function limparChave(v) { return String(v || '').replace(/\s+/g, '').slice(0, 100); }
+function limparBanco(v) { return String(v || '').trim().replace(/\s+/g, ' ').slice(0, 60); }
+
+/** Grava uma célula como texto, formatando só ela (nunca a coluna inteira). */
+function gravarTexto(s, linha, coluna, valor) {
+  s.getRange(linha, coluna).setNumberFormat('@').setValue(valor);
 }
 
 function acharMotorista(id) {
@@ -151,7 +167,7 @@ function pagamentos() {
       de: comoData(l[3]), ate: comoData(l[4]),
       qtd: Number(l[5]) || 0, valor: Number(l[6]) || 0,
       pagoEm: comoEnvio(l[7]), obs: String(l[8] || ''),
-      e2e: String(l[9] || ''), comprovante: String(l[10] || '')
+      e2e: String(l[9] || ''), comprovante: String(l[10] || ''), tamanho: Number(l[11]) || 0
     };
   });
 }
@@ -215,10 +231,11 @@ function processar(p) {
     var abertas = todas.filter(function (v) { return !v.pagamento; });
     // o motorista recebe o E2E, nunca o identificador do arquivo no Drive
     var meus = pagamentos().filter(function (x) { return x.motorista === m.id; })
-      .map(function (x) { x.comprovante = ''; return x; });
+      .map(function (x) { x.comprovante = ''; x.tamanho = 0; return x; });
 
     return {
-      ok: true, nome: m.nome, tarifa: m.tarifa, hoje: hojeBR(),
+      // a própria chave PIX e o banco: o motorista confere se o gestor cadastrou certo
+      ok: true, nome: m.nome, tarifa: m.tarifa, chave: m.chave, banco: m.banco, hoje: hojeBR(),
       viagens: todas.filter(function (v) { return !p.mes || v.data.indexOf(p.mes) === 0; }),
       abertoQtd: abertas.length,
       abertoValor: abertas.reduce(function (s, v) { return s + v.valor; }, 0),
@@ -379,8 +396,9 @@ function processar(p) {
         var arq = pastaComprovantes().createFile(Utilities.newBlob(bytes, String(p.tipo), nomeArq));
         descartarComprovante(String(d4[z][10] || '')); // trocar o comprovante não deixa o antigo solto
         sp2.getRange(z + 1, 11).setNumberFormat('@').setValue(arq.getId());
+        sp2.getRange(z + 1, 12).setValue(bytes.length);
         SpreadsheetApp.flush();
-        return { ok: true, comprovante: arq.getId() };
+        return { ok: true, comprovante: arq.getId(), tamanho: bytes.length };
       }
       return { ok: false, erro: 'Pagamento não encontrado.' };
     } finally { trava4.releaseLock(); }
@@ -391,8 +409,12 @@ function processar(p) {
     var tarifa = Number(String(p.tarifa).replace(',', '.')) || 0;
     if (!nome || tarifa <= 0) return { ok: false, erro: 'Informe nome e tarifa.' };
     var codigo = novoCodigo('m');
-    abaMotoristas().appendRow([codigo, nome, tarifa]);
-    return { ok: true, id: codigo };
+    var sm = abaMotoristas(), nova = sm.getLastRow() + 1;
+    sm.getRange(nova, 1, 1, 3).setValues([[codigo, nome, tarifa]]);
+    var chaveNova = limparChave(p.chave), bancoNovo = limparBanco(p.banco);
+    if (chaveNova) gravarTexto(sm, nova, 4, chaveNova);
+    if (bancoNovo) gravarTexto(sm, nova, 5, bancoNovo);
+    return { ok: true, id: codigo, chave: chaveNova, banco: bancoNovo };
   }
 
   if (acao === 'edit_motorista') {
@@ -401,7 +423,11 @@ function processar(p) {
       if (String(l2[j2][0]) === String(p.id)) {
         if (p.nome) s2.getRange(j2 + 1, 2).setValue(String(p.nome).trim());
         if (p.tarifa) s2.getRange(j2 + 1, 3).setValue(Number(String(p.tarifa).replace(',', '.')) || 0);
-        return { ok: true };
+        // chave e banco podem ser apagados: só mexe quando o campo veio na chamada
+        if (p.chave !== undefined) gravarTexto(s2, j2 + 1, 4, limparChave(p.chave));
+        if (p.banco !== undefined) gravarTexto(s2, j2 + 1, 5, limparBanco(p.banco));
+        var atual = acharMotorista(p.id);
+        return { ok: true, chave: atual.chave, banco: atual.banco };
       }
     }
     return { ok: false, erro: 'Motorista não encontrado.' };
@@ -471,7 +497,7 @@ function removerLinha(id, donoObrigatorio, somenteHoje) {
 /** Rode uma vez pelo editor após atualizar o script. */
 function preparar() {
   formatarTexto(abaViagens(), [1, 2, 4, 5, 6, 9, 10]);
-  formatarTexto(abaMotoristas(), [1]);
+  formatarTexto(abaMotoristas(), TEXTO_M);
   formatarTexto(abaAjustes(), [1, 2]);
   formatarTexto(abaPagamentos(), TEXTO_P);
 }
