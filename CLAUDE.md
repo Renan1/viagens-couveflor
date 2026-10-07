@@ -166,8 +166,8 @@ gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes d
 ### Aprovadas, a fazer
 
 1. **Chave PIX, banco e tamanho do comprovante — no ar desde 2026-10-07**
-   (`index.html` 6.1 + `Code.gs` 6). Testados com respostas simuladas; falta o dono
-   cadastrar as chaves reais e conferir no primeiro fechamento. Como ficou:
+   (`index.html` 6.1 + `Code.gs` 6). Chaves reais cadastradas pelo dono em 2026-10-07,
+   funcionando. Falta só ver o tamanho do arquivo no próximo comprovante. Como ficou:
    - Aba Motoristas ganha `Chave PIX` e `Banco` no fim (texto); aba Pagamentos ganha
      `Tamanho` (bytes) no fim. As colunas entram sozinhas na primeira chamada.
    - Chave em **texto livre**, só sem espaços (decisão do dono); banco livre.
