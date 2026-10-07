@@ -119,14 +119,14 @@ gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes d
 
 ## Estado em 2026-10-02
 
-- **Visual 6.0 (redesign v3, protótipo do dono):** tokens de cor `--bg`, `--surf`,
+- **Visual 6.0 (redesign v3, protótipo do dono; inclui a leitura de PDF da 5.2):** tokens de cor `--bg`, `--surf`,
   `--ida` etc. no `:root` (escuro padrão; claro pelo aparelho ou botão de tema, guardado
   em `cf_tema`), fonte do sistema, ícone "carro de frente" (`ICONE` no código e
   `icone-*.png`). EXTRA, fechamento PIX e detalhe do pagamento abrem em folha que sobe
   de baixo (`folha()`). PIN: as casas são desenho sobre um campo invisível
   (`#pinCampo`) que chama o teclado do celular — **teclado na tela foi rejeitado pelo
   dono**; com 4 dígitos entra sozinho (criar PIN ainda pede botão). Ficou de fora do
-  protótipo o que não existe nos dados: leitura automática do E2E no PDF, chave PIX,
+  protótipo o que não existe nos dados: chave PIX, nome do banco e tamanho do arquivo,
   tarifas diferentes para IDA e VOLTA.
 - **No ar:** `index.html` 6.0 + `Code.gs` 5 (ping: 2 motoristas, 67 viagens). Drive
   autorizado; primeiro comprovante anexado com sucesso (pagamento fechado ainda na 4.1,
@@ -136,6 +136,12 @@ gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes d
   no envio não desfaz o pagamento; "anexar comprovante" no histórico permite reenviar
   ou anexar em pagamentos antigos), "ver comprovante" abre no Drive do dono, CSV de
   pagamentos com coluna `e2e` no fim.
+- **Versão 5.2 (no ar desde 2026-10-05, só `index.html`; `Code.gs` segue 5):** ao
+  anexar **PDF** no fechamento, o app lê o texto com pdf.js (cdnjs, 3.11.174, carregado
+  só nessa hora) e preenche o E2E se o campo estiver vazio; se já houver código
+  diferente, avisa sem sobrescrever. Mostra a data/hora do PIX embutida no E2E (UTC→
+  Brasília) e se o valor do fechamento aparece no PDF. **Foto não é lida** (OCR pesado e
+  erra O/0, I/1 no final do código) — decisão do dono. O texto do PDF não sai do aparelho.
 
 ### Ao publicar uma versão nova do `Code.gs` — a ordem importa
 

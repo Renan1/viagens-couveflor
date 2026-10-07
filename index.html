@@ -6,6 +6,7 @@
 <title>Viagens · Couve Flor</title>
 <meta name="theme-color" content="#0B1D2A">
 <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
 <link rel="apple-touch-icon" href="icone-192.png">
 <style>
   /* Redesign v3 — tokens de cor. Escuro é o padrão; claro segue o aparelho ou a escolha no botão de tema. */
@@ -818,6 +819,7 @@ function folhaFechamento(){
   const m = (E.dados.motoristas||[]).find(x => x.id === E.fechando.id) || {nome:""};
   const dele = (E.dados.abertas||[]).filter(v => v.motorista === E.fechando.id);
   const entram = dele.filter(v => v.data <= E.fechando.ate);
+  E.fechando.total = soma(entram); // a leitura do PDF confere este valor
   return '<h3>Fechar pagamento — '+esc(m.nome)+'</h3><p>Pagamento sempre por PIX.</p>'+
     '<div class="bloco"><label class="rot" for="fAte">Fechar viagens até o dia</label>'+
       '<input type="date" id="fAte" class="campo" value="'+esc(E.fechando.ate)+'">'+
@@ -826,7 +828,9 @@ function folhaFechamento(){
       '<input id="fE2E" class="campo mono" autocomplete="off" autocapitalize="characters" spellcheck="false" '+
         'placeholder="E00000000202610021200..." value="'+esc(E.fechando.e2e||"")+'">'+
       '<p class="ajuda">Está no comprovante do banco: começa com E e tem 32 caracteres.</p>'+
+      '<div id="fApoio">'+apoioE2E(E.fechando, E.fechando.total)+'</div>'+
       '<label class="rot" style="margin-top:14px">Comprovante (PDF ou foto, opcional)</label>'+
+      '<p class="ajuda" style="margin:-2px 0 8px">No PDF do banco o app lê o código E2E sozinho.</p>'+
       (E.fechando.arquivo
         ? '<div class="resumo" style="margin-top:0"><span style="overflow-wrap:anywhere;color:var(--texto)">'+IC.clipe.replace('<svg','<svg width="14" height="14"')+' '+esc(E.fechando.arquivo.name)+'</span>'+
           '<button class="mini" data-acao="tirarArquivo">tirar</button></div>'
@@ -955,7 +959,7 @@ const ACOES = {
     const campo = document.getElementById("arquivo");
     campo.value = ""; campo.click();
   },
-  tirarArquivo(){ if(E.fechando) E.fechando.arquivo = null; pintar(); },
+  tirarArquivo(){ if(E.fechando){ E.fechando.arquivo = null; E.fechando.texto = null; E.fechando.leitura = null; } pintar(); },
   async desfazerPagamento(b){
     if(!confirm("Desfazer este pagamento? As viagens voltam para o 'a pagar' e o comprovante, se houver, vai para a lixeira do Drive.")) return;
     E.ocupado = true; E.aviso = "Desfazendo…"; E.avisoBom = true; pintar();
@@ -1107,11 +1111,113 @@ async function anexar(idPagamento, arquivo){
   } catch(e){ return e.message; }
 }
 
+/* ————— leitura do E2E no PDF do banco ————— */
+/* O PDF do banco traz o texto dentro: dá para achar o E2E sem OCR e sem erro de O/0.
+   Foto não passa por aqui (OCR seria pesado e erraria justamente no final do código).
+   O texto fica só no aparelho; nada dele vai para o servidor. */
+const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+let pdfjsCarregando = null;
+function carregarPdfjs(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if(!pdfjsCarregando) pdfjsCarregando = new Promise((ok, falhou) => {
+    const s = document.createElement("script");
+    s.src = PDFJS + "pdf.min.js";
+    s.integrity = "sha512-q+4liFwdPC/bNdhUpZx6aXDx/h77yEQtn4I1slHydcbZK34nLaR3cAeYSJshoxIOq3mjEf7xJE8YWIUHMn+oCQ==";
+    s.crossOrigin = "anonymous";
+    s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + "pdf.worker.min.js"; ok(window.pdfjsLib); };
+    s.onerror = () => { pdfjsCarregando = null; falhou(new Error("leitor de PDF não carregou")); };
+    document.head.appendChild(s);
+  });
+  return pdfjsCarregando;
+}
+
+/** Texto do PDF sem espaços nem quebras: o banco às vezes quebra o código em duas linhas. */
+async function textoDoPdf(arquivo){
+  const lib = await carregarPdfjs();
+  const doc = await lib.getDocument({data: await arquivo.arrayBuffer()}).promise;
+  let t = "";
+  for(let i = 1; i <= Math.min(doc.numPages, 3); i++){
+    const c = await (await doc.getPage(i)).getTextContent();
+    t += c.items.map(x => x.str).join("");
+  }
+  return t.replace(/\s+/g, "");
+}
+
+/** Data e hora de Brasília embutidas no E2E (posições 10–21, em UTC). null se não for data válida. */
+function dataDoE2E(e2e){
+  const m = /^E\d{8}(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})/.exec(e2e || "");
+  if(!m) return null;
+  const [a, me, d, h, mi] = m.slice(1).map(Number);
+  if(me < 1 || me > 12 || d < 1 || d > 31 || h > 23 || mi > 59) return null;
+  const br = new Date(Date.UTC(a, me - 1, d, h, mi) - 3 * 3600 * 1000); // Brasil sem horário de verão desde 2019
+  return {iso: br.toISOString().slice(0,10), hora: br.toISOString().slice(11,16)};
+}
+
+/** Códigos E2E distintos no texto, só os que têm data válida dentro. */
+function e2esNoTexto(t){
+  const achados = (t.match(/E\d{20}[0-9A-Za-z]{11}/g) || []).filter(dataDoE2E);
+  return [...new Set(achados)];
+}
+
+/** O valor aparece no texto do comprovante? Compara no formato do banco: 1.748,97 */
+function valorNoTexto(t, valor){
+  const v = Number(valor).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
+  return new RegExp("(^|[^\\d.,])" + v.replace(/\./g, "\\.") + "(?!\\d)").test(t);
+}
+
+async function lerComprovante(arquivo){
+  const f = E.fechando;
+  f.leitura = "lendo";
+  pintar();
+  try{
+    const t = await textoDoPdf(arquivo);
+    if(E.fechando !== f) return; // fechamento cancelado enquanto lia
+    f.texto = t;
+    const achados = e2esNoTexto(t);
+    if(achados.length === 1){
+      const digitado = normalizarE2E(f.e2e);
+      if(!digitado){ f.e2e = achados[0]; f.leitura = "preenchido"; }
+      else f.leitura = digitado === achados[0] ? "confere" : "diferente:" + achados[0];
+    } else f.leitura = achados.length ? "varios" : "nada";
+  } catch(e){
+    if(E.fechando === f) f.leitura = "falhou";
+  }
+  if(E.fechando === f) pintar();
+}
+
+/** Linhas de apoio abaixo do campo E2E: o que o PDF disse, a data do PIX e o valor. */
+function apoioE2E(f, totalEntram){
+  const linhas = [];
+  const l = f.leitura || "";
+  if(l === "lendo") linhas.push(["fraco", "Lendo o PDF…"]);
+  else if(l === "preenchido") linhas.push(["bom", "Código lido do PDF. Confira com o comprovante."]);
+  else if(l === "confere") linhas.push(["bom", "Confere com o código do PDF."]);
+  else if(l.indexOf("diferente:") === 0) linhas.push(["ruim", "O PDF traz outro código: " + l.slice(10) + ". Confira qual é o certo."]);
+  else if(l === "varios") linhas.push(["ruim", "O PDF tem mais de um código E2E. Cole o do pagamento ao motorista."]);
+  else if(l === "nada") linhas.push(["fraco", "Não achei o código no PDF. Cole do app do banco."]);
+  else if(l === "falhou") linhas.push(["fraco", "Não deu para ler o PDF. Cole o código do app do banco."]);
+
+  const quando = dataDoE2E(normalizarE2E(f.e2e));
+  if(quando) linhas.push(["fraco", "PIX feito em " + curto(quando.iso) + "/" + quando.iso.slice(0,4) + " às " + quando.hora + "."]);
+  if(f.texto && totalEntram > 0){
+    linhas.push(valorNoTexto(f.texto, totalEntram)
+      ? ["bom", "O valor " + moeda(totalEntram) + " aparece no comprovante."]
+      : ["ruim", "O valor " + moeda(totalEntram) + " não aparece no comprovante. É o comprovante certo?"]);
+  }
+  const cor = {bom:"var(--pix)", ruim:"var(--alerta)", fraco:"var(--subtle)"};
+  const marca = {bom:"✓ ", ruim:"⚠ ", fraco:""};
+  return linhas.map(([tom, txt]) =>
+    '<p style="font-size:.78rem;font-weight:600;color:'+cor[tom]+';margin:8px 0 0;line-height:1.4;overflow-wrap:anywhere">'+marca[tom]+esc(txt)+'</p>').join("");
+}
+
 async function arquivoEscolhido(arquivo){
   const para = E.anexandoPara; E.anexandoPara = null;
   if(!arquivo || !para) return;
   if(para === "fechamento"){
-    if(E.fechando) E.fechando.arquivo = arquivo;
+    if(!E.fechando) return;
+    E.fechando.arquivo = arquivo;
+    E.fechando.texto = null; E.fechando.leitura = null;
+    if(arquivo.type === "application/pdf") return lerComprovante(arquivo);
     return pintar();
   }
   E.ocupado = true; E.aviso = "Enviando comprovante…"; E.avisoBom = true; pintar();
@@ -1169,7 +1275,16 @@ document.getElementById("app").addEventListener("change", ev => {
 });
 // a tela é redesenhada inteira a cada mudança: o que foi digitado precisa morar no estado
 document.getElementById("app").addEventListener("input", ev => {
-  if(ev.target.id === "fE2E" && E.fechando) E.fechando.e2e = ev.target.value;
+  if(ev.target.id === "fE2E" && E.fechando){
+    E.fechando.e2e = ev.target.value;
+    // código mudou à mão: o "confere/diferente" do PDF precisa ser refeito
+    if(E.fechando.leitura && E.fechando.leitura !== "lendo" && E.fechando.leitura !== "falhou" && E.fechando.leitura !== "nada" && E.fechando.leitura !== "varios"){
+      const doPdf = e2esNoTexto(E.fechando.texto || "")[0], digitado = normalizarE2E(E.fechando.e2e);
+      E.fechando.leitura = !digitado ? null : (digitado === doPdf ? "confere" : "diferente:" + doPdf);
+    }
+    const apoio = document.getElementById("fApoio");
+    if(apoio) apoio.innerHTML = apoioE2E(E.fechando, E.fechando.total);
+  }
   if(ev.target.id === "eValor") E.extra.valor = ev.target.value;
   if(ev.target.id === "eDesc") E.extra.desc = ev.target.value;
   if(ev.target.id === "pinCampo"){
