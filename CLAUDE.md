@@ -136,8 +136,8 @@ gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes d
   dono**; com 4 dígitos entra sozinho (criar PIN ainda pede botão). Ficou de fora do
   protótipo o que não existe nos dados: chave PIX, nome do banco e tamanho do arquivo,
   tarifas diferentes para IDA e VOLTA.
-- **No ar:** `index.html` 6.0 (publicado em 2026-10-06) + `Code.gs` 5 (ping em
-  2026-10-07: 2 motoristas, 92 viagens). Drive autorizado.
+- **No ar:** `index.html` 6.1 + `Code.gs` 6 (ambos publicados em 2026-10-07; ping:
+  2 motoristas, 92 viagens). Drive autorizado.
 - **Versão 5:** E2E obrigatório no fechamento, comprovante opcional (PDF ou foto
   reduzida no aparelho para JPEG de até 1600 px), enviado depois do fechamento (falha
   no envio não desfaz o pagamento; "anexar comprovante" no histórico permite reenviar
@@ -165,10 +165,9 @@ gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes d
 
 ### Aprovadas, a fazer
 
-1. **Chave PIX, banco e tamanho do comprovante — prontos no branch `chave-pix`
-   (`index.html` 6.1 + `Code.gs` 6), aguardando publicação.** Testados com respostas
-   simuladas, não contra o Google. Ordem: dono publica o `Code.gs` 6 → `ping` responde
-   `"versao":6` → juntar `chave-pix` ao `main`. Como ficou:
+1. **Chave PIX, banco e tamanho do comprovante — no ar desde 2026-10-07**
+   (`index.html` 6.1 + `Code.gs` 6). Testados com respostas simuladas; falta o dono
+   cadastrar as chaves reais e conferir no primeiro fechamento. Como ficou:
    - Aba Motoristas ganha `Chave PIX` e `Banco` no fim (texto); aba Pagamentos ganha
      `Tamanho` (bytes) no fim. As colunas entram sozinhas na primeira chamada.
    - Chave em **texto livre**, só sem espaços (decisão do dono); banco livre.
