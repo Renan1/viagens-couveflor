@@ -145,9 +145,10 @@ gestor no aparelho (inclui `cf_cache_gestor_todas`, o histórico do dashboard). 
 
 ## Estado em 2026-10-20
 
-- **No ar:** `index.html` **6.2** (Dashboard de viagens) + `Code.gs` 6 (inalterado).
-  Juntado ao `main` em 2026-10-20 com o ok do dono, que já tinha testado o branch com
-  dados reais. GitHub Pages leva alguns minutos para refletir.
+- **No ar:** `index.html` **6.3** + `Code.gs` 6 (inalterado). A 6.2 (Dashboard de
+  viagens) foi juntada ao `main` em 2026-10-20, com o ok do dono, que já tinha testado o
+  branch com dados reais; a 6.3 (baixar CSV) foi juntada no mesmo dia, também com ok.
+  GitHub Pages leva alguns minutos para refletir.
 - **Dashboard de viagens (6.2), o que mostra** (mês escolhido no seletor):
   - resumo: total, viagens, média por viagem, comparado ao mês anterior (mesmo período se
     o mês está em andamento);
@@ -176,7 +177,7 @@ gestor no aparelho (inclui `cf_cache_gestor_todas`, o histórico do dashboard). 
   no cálculo. Só afeta a projeção, nunca o valor pago.
 - **Pagamento mensal a partir de outubro/2026**; fechamento de outubro será feito no dia
   do PIX (começo de novembro) com "até 31/10". Ver "Fechar = pagar" nas regras.
-- **6.3 (branch `baixar-csv`, aguardando ok do dono para juntar ao `main`):** botões
+- **6.3 (baixar CSV, no ar desde 2026-10-20):** botões
   "Baixar viagens" e "Baixar pagtos" no Exportar do painel, ao lado dos "Copiar". O
   arquivo de **pagamentos sai idêntico ao "copiar", sem BOM** (é o que segue para o
   dashboard financeiro; um leitor de máquina pode engolir o BOM no nome da primeira
