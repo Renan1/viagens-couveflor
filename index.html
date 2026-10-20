@@ -850,7 +850,7 @@ async function carregarTodas(){
 }
 
 /* dias úteis: segunda a sexta, menos feriados nacionais (fixos + Carnaval, Sexta-feira Santa e Corpus Christi).
-   Feriado municipal ou folga da empresa não é conhecido: liste em FERIADOS_LOCAIS ("AAAA-MM-DD"). */
+   Feriado municipal ou folga da empresa: liste em FERIADOS_LOCAIS. "MM-DD" vale todo ano; "AAAA-MM-DD" vale só naquele dia. */
 const FERIADOS_LOCAIS = [];
 const dataDe = iso => { const [a,m,d] = String(iso).split("-").map(Number); return new Date(a, m-1, d); };
 const isoDe = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
@@ -867,7 +867,7 @@ function feriadosDoAno(ano){
   const p = pascoa(ano), s = new Set(["01-01","04-21","05-01","09-07","10-12","11-02","11-15","12-25"].map(x => ano+"-"+x));
   if(ano >= 2024) s.add(ano+"-11-20");
   [-48,-47,-2,60].forEach(n => s.add(isoDe(somaDias(p, n))));
-  FERIADOS_LOCAIS.forEach(x => s.add(x));
+  FERIADOS_LOCAIS.forEach(x => s.add(x.length === 5 ? ano+"-"+x : x));
   return feriadosPorAno[ano] = s;
 }
 function ehDiaUtil(d){ const w = d.getDay(); return w > 0 && w < 6 && !feriadosDoAno(d.getFullYear()).has(isoDe(d)); }

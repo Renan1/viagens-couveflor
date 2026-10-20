@@ -17,7 +17,13 @@ abrir uma sessão nesta pasta. Mantenha-o atualizado ao fechar cada etapa.
 Controla as viagens que motoristas prestadores fazem para a empresa: levar a equipe de
 casa para a empresa (IDA), trazer de volta (VOLTA) e viagens fora da rotina (EXTRA).
 O motorista registra pelo celular com um toque; o gestor vê o consolidado, fecha
-pagamentos (sempre por PIX) e exporta para o dashboard financeiro.
+pagamentos (sempre por PIX), acompanha o **Dashboard de viagens** (aba dentro do app,
+desde a 6.2) e exporta para o dashboard financeiro da empresa (outro repositório — ver
+pendências).
+
+**Cadência de pagamento:** a partir de outubro/2026 o pagamento passa a ser **mensal**
+para todos (o Heder era pago por semana, por isso teve fechamento no meio do mês). O
+sistema aguenta as duas cadências, porque o fechamento é por viagem até uma data.
 
 2 a 3 motoristas, tarifa fixa por motorista (hoje R$ 50 e R$ 55), cerca de 4 viagens
 por dia útil. Volume anual na casa de 1.000 linhas.
@@ -32,6 +38,10 @@ por dia útil. Volume anual na casa de 1.000 linhas.
   (Executar como: eu | Acesso: qualquer pessoa). Endpoint `/exec` fixado na constante
   `API` dentro do `index.html`.
 - **Banco:** a própria planilha do Google que hospeda o script.
+- **Dashboard de viagens (6.2):** aba "Dashboard" do painel do gestor, dentro do
+  `index.html`. Só leitura, só gestor. Pede o histórico inteiro de uma vez (ação
+  `gestor` **sem** `mes` devolve todas as viagens) e calcula tudo no aparelho; não usa
+  rota nova do `Code.gs`. Gráfico em SVG feito à mão, sem biblioteca.
 - O `Code.gs` do repositório é **cópia**: quem roda é o código colado no editor do
   Apps Script. Mantenha os dois iguais.
 
@@ -80,6 +90,14 @@ Consequência aceita: quem tem o link de um motorista vê os dados daquele motor
 - **O motorista vê o E2E, nunca o arquivo do comprovante.** O comprovante fica numa
   pasta privada do Drive de quem publica o script.
 - **Desfazer pagamento manda o comprovante para a lixeira do Drive** (30 dias).
+- **Fechar = pagar.** O fechamento exige o E2E de um PIX que já aconteceu, então não
+  existe "fechar o mês" antes de pagar. Para pagar outubro no começo de novembro: abrir
+  "Fechar PIX" **no dia do pagamento** e pôr em "Fechar viagens até o dia" o último dia
+  do mês (31/10). Viagens de novembro ficam de fora e seguem em aberto. Viagem lançada
+  depois do fechamento (retroativa) entra no próximo.
+- **Tarifa igual todos os dias:** sábado, domingo e feriado valem o mesmo; o sistema
+  nunca usa dia da semana para calcular valor. Dia útil só existe na projeção do
+  dashboard.
 
 ## Armadilhas já pagas (não repetir)
 
@@ -98,6 +116,12 @@ Consequência aceita: quem tem o link de um motorista vê os dados daquele motor
   cópia do mês, o motorista vê os botões e registra pela fila. A tela "acesso não vale
   mais" é só para recusa do servidor — antes, ela aparecia offline e induzia o motorista
   a apertar "Sair" e perder o acesso.
+- **O dashboard depende de `gestor` sem `mes` devolver tudo.** Se o `Code.gs` passar a
+  paginar ou exigir `mes`, o dashboard quebra. Ele é recalculado em `telaDash()`; o
+  histórico fica em `E.todas` e é descartado a cada `carregar()` do painel (para não
+  mostrar número velho depois de um fechamento ou cancelamento).
+- **Mês em andamento não se compara com mês fechado.** O resumo compara "até o dia N" com
+  o mesmo período do mês anterior; a tabela marca o mês corrente como "parcial".
 - **A tela é redesenhada inteira (`pintar()`) a cada mudança.** Valor digitado em campo
   precisa morar no estado `E`, senão some. Input de arquivo fica fora do `#app`.
 
@@ -116,10 +140,43 @@ PIN, tipo restrito a PDF/JPEG, limite de 5 MB.
 **PIN do gestor no aparelho (5.1):** vale 30 dias fixos a partir de quando foi digitado
 (`cf_pin_ate`; abrir o app não renova). Vencido ou no botão "Sair do painel", o app
 apaga `cf_pin`, `cf_pin_ate` e as cópias `cf_cache_gestor_*` — que guardam dados do
-gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes da 5.1
+gestor no aparelho (inclui `cf_cache_gestor_todas`, o histórico do dashboard). `cf_fila` e `cf_motorista` não são tocados. PIN de antes da 5.1
 (sem prazo) começa a contar na primeira abertura da 5.1.
 
-## Estado em 2026-10-07
+## Estado em 2026-10-20
+
+- **No ar:** `index.html` **6.2** (Dashboard de viagens) + `Code.gs` 6 (inalterado).
+  Juntado ao `main` em 2026-10-20 com o ok do dono, que já tinha testado o branch com
+  dados reais. GitHub Pages leva alguns minutos para refletir.
+- **Dashboard de viagens (6.2), o que mostra** (mês escolhido no seletor):
+  - resumo: total, viagens, média por viagem, comparado ao mês anterior (mesmo período se
+    o mês está em andamento);
+  - gráfico de barras por mês (valor, empilhado VOLTA → IDA → EXTRA) e tabela com a
+    variação mensal; só meses a partir da primeira viagem;
+  - por motorista (viagens, valor, variação) e por tipo;
+  - **projeção do mês seguinte** (só para o mês atual ou o último fechado): viagens
+    IDA/VOLTA em dia útil por dia útil × dias úteis do mês seguinte × tarifa **atual** de
+    cada motorista, mais a média do que foge do ritmo (EXTRA e viagens fora de dia
+    útil). Faixa mínimo–máximo só com mais de um mês de histórico. É projeção, não
+    previsão: com poucos meses é conta, não tendência.
+- **Decisões de desenho do dashboard** (não refazer sem justificar): variação em cinza
+  com ▲/▼, **sem verde/vermelho** (gastar mais ou menos não é bom nem ruim por si);
+  pilha na ordem VOLTA → IDA → EXTRA, porque o cinza do EXTRA ao lado do verde da VOLTA
+  falhava no teste de daltonismo (validador de paleta); legenda e tabela existem porque o
+  amarelo da IDA no tema claro tem contraste baixo; dica do gráfico montada com
+  `textContent` (dado vem da planilha).
+- **Dias úteis** = segunda a sexta menos feriados nacionais (fixos, Carnaval, Sexta-feira
+  Santa, Corpus Christi, 20/11 desde 2024). **Feriados de Juiz de Fora ainda não estão
+  cadastrados**: lista em `FERIADOS_LOCAIS` no `index.html` (`"MM-DD"` vale todo ano,
+  `"AAAA-MM-DD"` um dia só). O dono indicou a fonte
+  (`pjf.mg.gov.br/secretarias/sarh/servicos/feriados.php`), mas o ambiente de nuvem não
+  alcança esse site; falta o dono colar a lista.
+- **Pagamento mensal a partir de outubro/2026**; fechamento de outubro será feito no dia
+  do PIX (começo de novembro) com "até 31/10". Ver "Fechar = pagar" nas regras.
+- **Testes do dashboard** foram feitos com dados simulados (Chromium, tema escuro e
+  claro) e pelo dono com dados reais.
+
+## Histórico até 2026-10-07
 
 - **Primeiro fechamento real com E2E feito** (Moisés, viagens de setembro, outubro
   ficou em aberto) — comprovante em **JPG**, então a leitura automática do PDF (5.2)
@@ -136,8 +193,8 @@ gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes d
   dono**; com 4 dígitos entra sozinho (criar PIN ainda pede botão). Ficou de fora do
   protótipo o que não existe nos dados: chave PIX, nome do banco e tamanho do arquivo,
   tarifas diferentes para IDA e VOLTA.
-- **No ar:** `index.html` 6.1 + `Code.gs` 6 (ambos publicados em 2026-10-07; ping:
-  2 motoristas, 92 viagens). Drive autorizado.
+- **Estava no ar em 2026-10-07:** `index.html` 6.1 + `Code.gs` 6 (ping: 2 motoristas,
+  92 viagens). Drive autorizado.
 - **Versão 5:** E2E obrigatório no fechamento, comprovante opcional (PDF ou foto
   reduzida no aparelho para JPEG de até 1600 px), enviado depois do fechamento (falha
   no envio não desfaz o pagamento; "anexar comprovante" no histórico permite reenviar
@@ -179,15 +236,41 @@ gestor no aparelho. `cf_fila` e `cf_motorista` não são tocados. PIN de antes d
    - O banco **não** sai do E2E: o ISPB embutido é o de **quem pagou** (sempre o Itaú
      da Couve Flor). Por isso é cadastrado junto com a chave.
    - Pagamentos com comprovante anterior à v6 ficam sem tamanho.
-2. **Dashboard financeiro — decidido: arquivo pela pasta `entrada` do dashboard.** O
-   `couveflor-dashboard` desligou a sincronização com Apps Script em 2026-09-28 (pouco
-   confiável e insegura) e hoje recebe dados por arquivos em `entrada/<MÊS>/` no GitHub,
-   processados por workflow. Caminho mais rápido e coerente: o CSV de pagamentos deste
-   app entra por lá. O trabalho principal é **no repositório do dashboard** (o
-   `tools/entrada.py` aprender a ler o CSV de transporte); deste lado, no máximo um
-   botão "baixar CSV" além do "copiar". Não ler a planilha direto.
+2. **CSV de pagamentos para o dashboard financeiro da empresa (`couveflor-dashboard`)
+   — tendência do dono em 2026-10-20: manter (opção A); ainda não iniciado.**
+   Não confundir com o Dashboard de viagens deste app: aquele é operação de viagens
+   (volume, comparação, projeção); este é o custo de transporte entrando nas finanças da
+   empresa. Um não substitui o outro. O `couveflor-dashboard` é **outro repositório** e
+   desligou a sincronização com Apps Script em 2026-09-28 (pouco confiável e insegura);
+   hoje recebe dados por arquivos em `entrada/<MÊS>/` no GitHub, processados por
+   workflow. O CSV de pagamentos deste app entra por lá. Falta:
+   - **deste lado:** botão "baixar CSV" de pagamentos (hoje só "copiar pagtos");
+   - **do outro lado:** `tools/entrada.py` aprender a ler o CSV de transporte. Esse
+     repositório não foi anexado às sessões até agora.
+   Não ler a planilha direto. Primeiro pagamento mensal real: começo de novembro/2026.
 3. **Testar a leitura de PDF com comprovante real** no próximo fechamento em que o
-   banco gerar PDF.
+   banco gerar PDF (o de outubro, no começo de novembro: pedir o comprovante em PDF,
+   não em foto). No mesmo fechamento, ver o tamanho do arquivo (pendência 1).
+4. **Cadastrar os feriados de Juiz de Fora** em `FERIADOS_LOCAIS` (o dono cola a lista).
+   Só afeta a projeção do dashboard, nunca valores pagos.
+
+### Ideias analisadas, ainda sem decisão do dono
+
+- **Indicadores de consistência (sem GPS):** viagens duplicadas no mesmo dia, horário
+  fora do padrão, quantidade de lançamentos retroativos (`Enviado em` já guarda isso).
+  Barato, não exige dado novo. Recomendado como próximo passo depois do dashboard.
+- **Rastreamento por GPS da corrida** (início, fim, trajeto, km, mapa). Análise de
+  2026-10-20: **como app web instalado só rastreia com a tela ligada e o app aberto**; o
+  motorista usa Waze/Google Maps, e o app vai para segundo plano e para de gravar. Como
+  a tarifa é fixa por viagem, trajeto e km não mudam o valor pago — o ganho seria prova
+  de que a viagem aconteceu. Opções: (A) dois pontos GPS, um no início e um no fim, no
+  toque; (B) trilha completa pelo app web, com buracos; (C) app nativo com localização
+  em segundo plano (outro projeto). Trilha guardada simplificada, uma linha por viagem
+  (célula aceita 50 mil caracteres), não um ponto por linha. **LGPD e risco de vínculo:**
+  rastrear trajeto exige consentimento e pode pesar como subordinação; consultar
+  advogado/contador antes de ir além da opção A. Antes de qualquer coisa: experimento de
+  1 a 2 dias em ambiente de teste (cópia do repositório em HTTPS, planilha e Apps Script
+  separados), com um motorista real e o Waze aberto, para ver quantos pontos chegam.
 
 ### Adiadas pelo dono
 
@@ -211,3 +294,7 @@ Servir a pasta com um servidor estático (ex.: `npx http-server -p 8080 -c-1`) e
 `http://127.0.0.1:8080`. O app fala com a planilha real. Para testar telas do gestor
 ou cenários sem rede sem mexer em dados reais, sobrescrever `window.fetch` no console
 com respostas simuladas e chamar `carregar()`. Ao final, `localStorage.clear()`.
+
+Para o dashboard, o simulado precisa responder `acao:"gestor"` com `viagens` (todas, sem
+`mes`), `motoristas` (`id`, `nome`, `tarifa`) e `hojeISO`. Em teste automatizado
+(Playwright), `localStorage.cf_pin` e `cf_pin_ate` (data futura) pulam a tela do PIN.
