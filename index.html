@@ -312,7 +312,7 @@
 const API = "https://script.google.com/macros/s/AKfycbyb3mIEaspqZPGhbWofnaqfZ7YwMV9URH0usuFylEIY7AFe8BKq2jlzzfMqZDyrpM4M/exec";
 /* ————————————————————————————————————————————————————————— */
 
-const VERSAO = "6.3";
+const VERSAO = "6.4";
 
 const TIPOS = {
   ida:   {sigla:"IDA",   rotulo:"Levar equipe",  sub:"casa → empresa", cor:"var(--ida)"},
@@ -873,16 +873,17 @@ function feriadosDoAno(ano){
   return feriadosPorAno[ano] = s;
 }
 function ehDiaUtil(d){ const w = d.getDay(); return w > 0 && w < 6 && !feriadosDoAno(d.getFullYear()).has(isoDe(d)); }
-/* dias úteis do mês; "ate" (ISO, exclusivo) e "desde" (ISO, inclusivo) recortam o intervalo */
-function diasUteis(mes, ate, desde){
-  const [a,m] = mes.split("-").map(Number); let n = 0;
+/* dias do mês separados em úteis e "não úteis" (fim de semana e feriado);
+   "ate" (ISO, exclusivo) e "desde" (ISO, inclusivo) recortam o intervalo */
+function diasDoMes(mes, ate, desde){
+  const [a,m] = mes.split("-").map(Number); let uteis = 0, nao = 0;
   for(let d = new Date(a, m-1, 1); d.getMonth() === m-1; d = somaDias(d, 1)){
     const iso = isoDe(d);
     if(ate && iso >= ate) break;
     if(desde && iso < desde) continue;
-    if(ehDiaUtil(d)) n++;
+    if(ehDiaUtil(d)) uteis++; else nao++;
   }
-  return n;
+  return {uteis:uteis, nao:nao};
 }
 const ehUtilISO = iso => { const d = dataDe(iso); return !isNaN(d) && ehDiaUtil(d); };
 
@@ -954,45 +955,54 @@ function graficoMeses(rs, meses){
     '<div class="legenda">'+ORDEM_PILHA.map(t => '<span><i style="background:'+TIPOS[t].cor+'"></i>'+TIPOS[t].sigla+'</span>').join("")+'</div></div>';
 }
 
-/* Projeção do mês seguinte a "base": ritmo de viagens fixas (IDA/VOLTA em dia útil) por dia útil × dias úteis do mês
-   seguinte × tarifa atual de cada motorista, mais a média do que foge do ritmo (EXTRA e viagens fora de dia útil). */
+/* Projeção do mês seguinte a "base". Os motoristas trabalham todos os dias e a tarifa é a mesma, então o ritmo é
+   medido em dois grupos, pelos próprios dados: dias úteis e dias não úteis (fim de semana e feriado).
+   viagens IDA/VOLTA por dia de cada grupo × dias de cada grupo no mês seguinte × tarifa atual do motorista,
+   mais a média dos EXTRA. Se o motorista não trabalha nos dias não úteis, o ritmo desse grupo sai zero sozinho. */
 function ritmoDoMes(vs, mes, corte, inicio){
   const desde = inicio && inicio.slice(0,7) === mes ? inicio : null;
-  const uteis = diasUteis(mes, corte, desde), porMot = {};
-  let fora = 0;
+  const dias = diasDoMes(mes, corte, desde), porMot = {};
+  let extras = 0;
   for(const v of vs){
     const dia = String(v.data);
     if(dia.slice(0,7) !== mes || (corte && dia >= corte)) continue;
     const val = Number(v.valor) || 0;
-    if((v.tipo === "ida" || v.tipo === "volta") && ehUtilISO(dia)){
-      const p = porMot[v.motorista] || (porMot[v.motorista] = {nome:v.nome, n:0, valor:0}); p.n++; p.valor += val;
-    } else fora += val;
+    if(v.tipo === "ida" || v.tipo === "volta"){
+      const p = porMot[v.motorista] || (porMot[v.motorista] = {nome:v.nome, util:0, nao:0, n:0, valor:0});
+      if(ehUtilISO(dia)) p.util++; else p.nao++;
+      p.n++; p.valor += val;
+    } else extras += val;
   }
-  return {mes, uteis, porMot, fora};
+  return {mes:mes, uteis:dias.uteis, nao:dias.nao, porMot:porMot, extras:extras};
 }
 function projetar(T, base){
   const vs = T.viagens, hoje = hojeISO(), andamento = base === hoje.slice(0,7), corte = andamento ? hoje : null;
   const datas = vs.map(v => String(v.data)).filter(Boolean).sort(), inicio = datas[0] || null;
-  const alvo = mover(base, 1), uteisAlvo = diasUteis(alvo);
+  const alvo = mover(base, 1), diasAlvo = diasDoMes(alvo);
   const r0 = ritmoDoMes(vs, base, corte, inicio);
   if(r0.uteis < 3 || !Object.keys(r0.porMot).length) return null;
   const refs = [r0].concat([mover(base,-1), mover(base,-2)].map(m => ritmoDoMes(vs, m, null, inicio))
     .filter(r => r.uteis >= 10 && Object.keys(r.porMot).length));
+  // mês em andamento que ainda não teve fim de semana: empresta o ritmo do mais recente que teve
+  const comNao = refs.find(r => r.nao > 0);
   const tarifa = {}; (T.motoristas||[]).forEach(m => { tarifa[m.id] = Number(m.tarifa) || 0; });
   const calc = r => {
     let fixo = 0, viagens = 0; const por = {};
     for(const id in r.porMot){
-      const p = r.porMot[id], t = tarifa[id] || p.valor/p.n, n = p.n / r.uteis * uteisAlvo;
+      const p = r.porMot[id], t = tarifa[id] || p.valor/p.n, fonte = r.nao > 0 ? r : comNao, q = fonte && fonte.porMot[id];
+      const n = p.util / r.uteis * diasAlvo.uteis + (fonte ? (q ? q.nao : 0) / fonte.nao * diasAlvo.nao : 0);
       por[id] = {nome:p.nome, n:n, valor:n*t}; fixo += n*t; viagens += n;
     }
     return {fixo:fixo, viagens:viagens, por:por};
   };
   const est = refs.map(calc);
   const fechados = refs.filter(r => !(andamento && r === r0));
-  const avulsas = fechados.length ? fechados.reduce((s,r) => s + r.fora, 0) / fechados.length : r0.fora / r0.uteis * uteisAlvo;
+  const avulsas = fechados.length ? fechados.reduce((s,r) => s + r.extras, 0) / fechados.length
+                                  : r0.extras / (r0.uteis + r0.nao) * (diasAlvo.uteis + diasAlvo.nao);
   const totais = est.map(e => e.fixo + avulsas);
-  return {alvo:alvo, uteisAlvo:uteisAlvo, base:base, uteisBase:r0.uteis, andamento:andamento, est:est[0], avulsas:avulsas,
-          total:totais[0], faixa: totais.length > 1 ? {min:Math.min.apply(null,totais), max:Math.max.apply(null,totais)} : null, nMeses:refs.length};
+  return {alvo:alvo, diasAlvo:diasAlvo, base:base, uteisBase:r0.uteis, naoBase:r0.nao, semFimDeSemana:r0.nao === 0 && !comNao,
+          andamento:andamento, est:est[0], avulsas:avulsas, total:totais[0],
+          faixa: totais.length > 1 ? {min:Math.min.apply(null,totais), max:Math.max.apply(null,totais)} : null, nMeses:refs.length};
 }
 function blocoProjecao(T){
   const mesAtual = hojeISO().slice(0,7);
@@ -1006,15 +1016,16 @@ function blocoProjecao(T){
     (p.faixa ? '<div class="ajuda">entre '+moedaInt(p.faixa.min)+' e '+moedaInt(p.faixa.max)+', conforme o ritmo dos últimos '+p.nMeses+' meses</div>'
              : '<div class="ajuda">Só há '+(p.andamento ? "o mês em andamento" : "1 mês")+' de histórico: isto é uma conta, não uma tendência — por isso não há faixa.</div>')+
     '<div class="linhas">';
-  const ids = Object.keys(p.est.por);
-  for(const id of ids){
+  for(const id of Object.keys(p.est.por)){
     const e = p.est.por[id];
-    h += '<div><span>'+esc(e.nome)+' · ≈ '+Math.round(e.n)+' viagens fixas</span><b class="tab">'+moedaInt(e.valor)+'</b></div>';
+    h += '<div><span>'+esc(e.nome)+' · ≈ '+Math.round(e.n)+' viagens IDA/VOLTA</span><b class="tab">'+moedaInt(e.valor)+'</b></div>';
   }
-  h += '<div><span>Avulsas e fora de dia útil (média)</span><b class="tab">'+moedaInt(p.avulsas)+'</b></div></div>'+
-    '<p class="ajuda">Base: ritmo de IDA/VOLTA de '+mesLongo(p.base)+' em '+p.uteisBase+' dias úteis'+(p.andamento?' (só os dias já encerrados)':'')+
-    '; '+mesLongo(p.alvo)+' tem '+p.uteisAlvo+' dias úteis (feriados nacionais descontados; feriado local ou folga da empresa não entra — veja FERIADOS_LOCAIS no código). '+
-    'Tarifa usada: a atual de cada motorista. Projeção, não previsão: assume o mesmo ritmo por dia útil.</p></div>';
+  h += '<div><span>EXTRA (média dos meses fechados)</span><b class="tab">'+moedaInt(p.avulsas)+'</b></div></div>'+
+    '<p class="ajuda">Base: ritmo de IDA/VOLTA de '+mesLongo(p.base)+' em '+p.uteisBase+' dias úteis e '+p.naoBase+' de fim de semana ou feriado'+
+    (p.andamento?' (só os dias já encerrados)':'')+'; '+mesLongo(p.alvo)+' tem '+p.diasAlvo.uteis+' úteis e '+p.diasAlvo.nao+
+    ' de fim de semana ou feriado (feriados nacionais e o de Santo Antônio; ponto facultativo não conta). '+
+    (p.semFimDeSemana ? 'Este mês ainda não teve fim de semana, então a projeção não inclui viagens de fim de semana. ' : '')+
+    'Tarifa usada: a atual de cada motorista. Projeção, não previsão: assume o mesmo ritmo de cada tipo de dia.</p></div>';
   return h;
 }
 

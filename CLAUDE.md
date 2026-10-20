@@ -157,18 +157,22 @@ gestor no aparelho (inclui `cf_cache_gestor_todas`, o histórico do dashboard). 
   - gráfico de barras por mês (valor, empilhado VOLTA → IDA → EXTRA) e tabela com a
     variação mensal; só meses a partir da primeira viagem;
   - por motorista (viagens, valor, variação) e por tipo;
-  - **projeção do mês seguinte** (só para o mês atual ou o último fechado): viagens
-    IDA/VOLTA em dia útil por dia útil × dias úteis do mês seguinte × tarifa **atual** de
-    cada motorista, mais a média do que foge do ritmo (EXTRA e viagens fora de dia
-    útil). Faixa mínimo–máximo só com mais de um mês de histórico. É projeção, não
-    previsão: com poucos meses é conta, não tendência.
+  - **projeção do mês seguinte** (só para o mês atual ou o último fechado): como os
+    motoristas trabalham todos os dias com a mesma tarifa, o ritmo é medido em dois
+    grupos pelos próprios dados — **dias úteis** e **dias não úteis** (fim de semana e
+    feriado): viagens IDA/VOLTA por dia de cada grupo × dias de cada grupo no mês seguinte
+    × tarifa **atual** de cada motorista, mais a média dos EXTRA dos meses fechados. Se um
+    motorista não trabalha nos não úteis, esse ritmo sai zero sozinho. Mês em andamento
+    que ainda não teve fim de semana empresta o ritmo do mês mais recente que teve (sem
+    histórico, avisa que não inclui fim de semana). Faixa mínimo–máximo só com mais de um
+    mês de histórico. É projeção, não previsão: com poucos meses é conta, não tendência.
 - **Decisões de desenho do dashboard** (não refazer sem justificar): variação em cinza
   com ▲/▼, **sem verde/vermelho** (gastar mais ou menos não é bom nem ruim por si);
   pilha na ordem VOLTA → IDA → EXTRA, porque o cinza do EXTRA ao lado do verde da VOLTA
   falhava no teste de daltonismo (validador de paleta); legenda e tabela existem porque o
   amarelo da IDA no tema claro tem contraste baixo; dica do gráfico montada com
   `textContent` (dado vem da planilha).
-- **Dias úteis** = segunda a sexta menos feriados nacionais (fixos, Carnaval, Sexta-feira
+- **Dia útil** (para separar os dois grupos da projeção) = segunda a sexta menos feriados nacionais (fixos, Carnaval, Sexta-feira
   Santa, Corpus Christi, 20/11 desde 2024). **Feriados de Juiz de Fora (cadastrados em
   2026-10-20):** só o municipal que não é nacional nem móvel — 13/06, Santo Antônio (Lei
   8.733/1995), em `FERIADOS_LOCAIS` como `"06-13"` (`"MM-DD"` vale todo ano,
@@ -181,6 +185,11 @@ gestor no aparelho (inclui `cf_cache_gestor_todas`, o histórico do dashboard). 
   projeção, nunca o valor pago.
 - **Pagamento mensal a partir de outubro/2026**; fechamento de outubro será feito no dia
   do PIX (começo de novembro) com "até 31/10". Ver "Fechar = pagar" nas regras.
+- **6.4 (branch `projecao-dias-corridos`, aguardando ok do dono para juntar ao `main`):**
+  a projeção deixou de tratar fim de semana como "avulso" e passou a medir dia útil e
+  dia não útil separadamente (ver acima). Testada com 4 cenários simulados de conta
+  conhecida (trabalham todo dia; só dias úteis; mês-base sem fim de semana com e sem
+  histórico): bateram exatamente.
 - **6.3 (baixar CSV, no ar desde 2026-10-20):** botões
   "Baixar viagens" e "Baixar pagtos" no Exportar do painel, ao lado dos "Copiar". O
   arquivo de **pagamentos sai idêntico ao "copiar", sem BOM** (é o que segue para o
