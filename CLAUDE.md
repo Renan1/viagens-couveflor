@@ -151,7 +151,7 @@ gestor no aparelho (inclui `cf_cache_gestor_todas`, o histórico do dashboard). 
   viagens) foi juntada ao `main` em 2026-10-20, com o ok do dono, que já tinha testado o
   branch com dados reais; a 6.3 (baixar CSV) foi juntada no mesmo dia, também com ok; a
   6.4 (projeção por tipo de dia) foi validada pelo dono com dados reais e juntada em
-  2026-10-21.
+  2026-10-20.
   GitHub Pages leva alguns minutos para refletir.
 - **Dashboard de viagens (6.2), o que mostra** (mês escolhido no seletor):
   - resumo: total, viagens, média por viagem, comparado ao mês anterior (mesmo período se
