@@ -21,6 +21,8 @@ pagamentos (sempre por PIX), acompanha o **Dashboard de viagens** (aba dentro do
 desde a 6.2) e exporta para o dashboard financeiro da empresa (outro repositório — ver
 pendências).
 
+**Trabalham também aos sábados e domingos** (dono, 2026-10-20), com a mesma tarifa.
+
 **Cadência de pagamento:** a partir de outubro/2026 o pagamento passa a ser **mensal**
 para todos (o Heder era pago por semana, por isso teve fechamento no meio do mês). O
 sistema aguenta as duas cadências, porque o fechamento é por viagem até uma data.
@@ -174,7 +176,9 @@ gestor no aparelho (inclui `cf_cache_gestor_todas`, o histórico do dashboard). 
   279-SRH/2025: 2/1, 18/2, 2/4, 20/4, 5/6, 28/10, 24/12, 31/12) **não entram**: valem
   para a prefeitura, não necessariamente para a Couve Flor. Se a Couve Flor parar em
   algum, acrescentar em `FERIADOS_LOCAIS`. Segunda e terça de Carnaval entram por padrão
-  no cálculo. Só afeta a projeção, nunca o valor pago.
+  no cálculo. **Dono, 2026-10-20:** não trabalham em 01/01 (já é feriado nacional);
+  24/12 e 31/12 possivelmente trabalham, mas só parte do dia — não cadastrados. Só afeta a
+  projeção, nunca o valor pago.
 - **Pagamento mensal a partir de outubro/2026**; fechamento de outubro será feito no dia
   do PIX (começo de novembro) com "até 31/10". Ver "Fechar = pagar" nas regras.
 - **6.3 (baixar CSV, no ar desde 2026-10-20):** botões
@@ -261,23 +265,14 @@ gestor no aparelho (inclui `cf_cache_gestor_todas`, o histórico do dashboard). 
 3. **Testar a leitura de PDF com comprovante real** no próximo fechamento em que o
    banco gerar PDF (o de outubro, no começo de novembro: pedir o comprovante em PDF,
    não em foto). No mesmo fechamento, ver o tamanho do arquivo (pendência 1).
-### Ideias analisadas, ainda sem decisão do dono
+### Próxima tarefa de desenvolvimento (aprovada pelo dono em 2026-10-20, sem código ainda)
 
-- **Indicadores de consistência (sem GPS):** viagens duplicadas no mesmo dia, horário
-  fora do padrão, quantidade de lançamentos retroativos (`Enviado em` já guarda isso).
-  Barato, não exige dado novo. Recomendado como próximo passo depois do dashboard.
-- **Rastreamento por GPS da corrida** (início, fim, trajeto, km, mapa). Análise de
-  2026-10-20: **como app web instalado só rastreia com a tela ligada e o app aberto**; o
-  motorista usa Waze/Google Maps, e o app vai para segundo plano e para de gravar. Como
-  a tarifa é fixa por viagem, trajeto e km não mudam o valor pago — o ganho seria prova
-  de que a viagem aconteceu. Opções: (A) dois pontos GPS, um no início e um no fim, no
-  toque; (B) trilha completa pelo app web, com buracos; (C) app nativo com localização
-  em segundo plano (outro projeto). Trilha guardada simplificada, uma linha por viagem
-  (célula aceita 50 mil caracteres), não um ponto por linha. **LGPD e risco de vínculo:**
-  rastrear trajeto exige consentimento e pode pesar como subordinação; consultar
-  advogado/contador antes de ir além da opção A. Antes de qualquer coisa: experimento de
-  1 a 2 dias em ambiente de teste (cópia do repositório em HTTPS, planilha e Apps Script
-  separados), com um motorista real e o Waze aberto, para ver quantos pontos chegam.
+- **Indicadores de consistência** no app, sem GPS e sem dado novo (o `Enviado em` já
+  existe): viagens duplicadas (mesmo motorista, mesmo tipo, mesmo dia), horário fora do
+  padrão e quantidade de lançamentos retroativos (data da viagem bem anterior ao `Enviado
+  em`). Só leitura, para o gestor. **Antes de codar, combinar com o dono** os limites
+  (o que é "fora do padrão", quantos dias contam como retroativo) e onde aparece (aba do
+  Dashboard ou faixa no Painel). Lembrete: duas IDA no mesmo dia pode ser legítimo.
 
 ### Adiadas pelo dono
 
@@ -294,6 +289,15 @@ gestor no aparelho (inclui `cf_cache_gestor_todas`, o histórico do dashboard). 
   o dono preferiu manter o botão em "Criar PIN".
 - **Ler o E2E de foto (OCR)**: descartado; só PDF é lido.
 - **Teclado numérico desenhado na tela do PIN**: rejeitado; usa o teclado do celular.
+- **GPS / rastreamento do trajeto da corrida: descartado pelo dono em 2026-10-20.** A
+  tarifa é fixa por viagem, então trajeto e km não mudam o valor pago; monitoramento
+  seria outro propósito, fora do escopo deste projeto. Só reabrir se virar produto (SaaS).
+  Se for retomado, a análise já feita: app web instalado só rastreia com tela ligada e app
+  aberto (o motorista usa Waze, o app vai para segundo plano e para de gravar); dois
+  pontos GPS (início e fim) é a opção barata; trilha completa pede app nativo; guardar a
+  trilha simplificada, uma linha por viagem; LGPD exige consentimento e rastrear trajeto
+  pode pesar como subordinação — consultar advogado ou contador; testar antes em ambiente
+  separado, com um motorista real e o Waze aberto.
 - **Integração automática com o dashboard financeiro** (anexar e alterar o
   `couveflor-dashboard` a partir daqui): descartada em 2026-10-20; fica o CSV manual.
 
