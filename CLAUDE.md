@@ -166,13 +166,22 @@ gestor no aparelho (inclui `cf_cache_gestor_todas`, o histórico do dashboard). 
   amarelo da IDA no tema claro tem contraste baixo; dica do gráfico montada com
   `textContent` (dado vem da planilha).
 - **Dias úteis** = segunda a sexta menos feriados nacionais (fixos, Carnaval, Sexta-feira
-  Santa, Corpus Christi, 20/11 desde 2024). **Feriados de Juiz de Fora ainda não estão
-  cadastrados**: lista em `FERIADOS_LOCAIS` no `index.html` (`"MM-DD"` vale todo ano,
-  `"AAAA-MM-DD"` um dia só). O dono indicou a fonte
-  (`pjf.mg.gov.br/secretarias/sarh/servicos/feriados.php`), mas o ambiente de nuvem não
-  alcança esse site; falta o dono colar a lista.
+  Santa, Corpus Christi, 20/11 desde 2024). **Feriados de Juiz de Fora (cadastrados em
+  2026-10-20):** só o municipal que não é nacional nem móvel — 13/06, Santo Antônio (Lei
+  8.733/1995), em `FERIADOS_LOCAIS` como `"06-13"` (`"MM-DD"` vale todo ano,
+  `"AAAA-MM-DD"` um dia só). **Pontos facultativos do servidor público** (Portaria
+  279-SRH/2025: 2/1, 18/2, 2/4, 20/4, 5/6, 28/10, 24/12, 31/12) **não entram**: valem
+  para a prefeitura, não necessariamente para a Couve Flor. Se a Couve Flor parar em
+  algum, acrescentar em `FERIADOS_LOCAIS`. Segunda e terça de Carnaval entram por padrão
+  no cálculo. Só afeta a projeção, nunca o valor pago.
 - **Pagamento mensal a partir de outubro/2026**; fechamento de outubro será feito no dia
   do PIX (começo de novembro) com "até 31/10". Ver "Fechar = pagar" nas regras.
+- **6.3 (branch `baixar-csv`, aguardando ok do dono para juntar ao `main`):** botões
+  "Baixar viagens" e "Baixar pagtos" no Exportar do painel, ao lado dos "Copiar". O
+  arquivo de **pagamentos sai idêntico ao "copiar", sem BOM** (é o que segue para o
+  dashboard financeiro; um leitor de máquina pode engolir o BOM no nome da primeira
+  coluna); o de **viagens sai com BOM** (para abrir no Excel com acento certo). Nomes:
+  `pagamentos-AAAA-MM-DD.csv` e `viagens-AAAA-MM.csv`. Separador `;`, decimal vírgula.
 - **Testes do dashboard** foram feitos com dados simulados (Chromium, tema escuro e
   claro) e pelo dono com dados reais.
 
@@ -236,24 +245,21 @@ gestor no aparelho (inclui `cf_cache_gestor_todas`, o histórico do dashboard). 
    - O banco **não** sai do E2E: o ISPB embutido é o de **quem pagou** (sempre o Itaú
      da Couve Flor). Por isso é cadastrado junto com a chave.
    - Pagamentos com comprovante anterior à v6 ficam sem tamanho.
-2. **CSV de pagamentos para o dashboard financeiro da empresa (`couveflor-dashboard`)
-   — tendência do dono em 2026-10-20: manter (opção A); ainda não iniciado.**
-   Não confundir com o Dashboard de viagens deste app: aquele é operação de viagens
-   (volume, comparação, projeção); este é o custo de transporte entrando nas finanças da
-   empresa. Um não substitui o outro. O `couveflor-dashboard` é **outro repositório** e
-   desligou a sincronização com Apps Script em 2026-09-28 (pouco confiável e insegura);
-   hoje recebe dados por arquivos em `entrada/<MÊS>/` no GitHub, processados por
-   workflow. O CSV de pagamentos deste app entra por lá. Falta:
-   - **deste lado:** botão "baixar CSV" de pagamentos (hoje só "copiar pagtos");
-   - **do outro lado:** `tools/entrada.py` aprender a ler o CSV de transporte. Esse
-     repositório não foi anexado às sessões até agora.
-   Não ler a planilha direto. Primeiro pagamento mensal real: começo de novembro/2026.
+2. **Dashboard financeiro da empresa (`couveflor-dashboard`) — decidido pelo dono em
+   2026-10-20: fica de fora deste app.** O Dashboard de viagens (aba do app) e o
+   financeiro (outro repositório, que recebe arquivos em `entrada/<MÊS>/` desde que a
+   sincronização com Apps Script foi desligada em 2026-09-28) são coisas diferentes. A
+   ponte é **manual**: o dono baixa o CSV de pagamentos (botão "Baixar pagtos", 6.3) e o
+   coloca na pasta do dashboard financeiro. Não mexer no `couveflor-dashboard` a partir
+   daqui e não ler a planilha direto. **Não verificado:** se o `tools/entrada.py` aceita
+   o nome do arquivo e se espera só o mês ou o histórico inteiro (o CSV traz todos os
+   pagamentos, como o "copiar" sempre trouxe — o comentário no código diz que o
+   dashboard já lê essas colunas, com `e2e` no fim). Se o primeiro envio de novembro
+   duplicar valores, o ajuste é filtrar o CSV pelo mês. Passo manual todo mês: se
+   esquecer, o custo de transporte não aparece nas finanças.
 3. **Testar a leitura de PDF com comprovante real** no próximo fechamento em que o
    banco gerar PDF (o de outubro, no começo de novembro: pedir o comprovante em PDF,
    não em foto). No mesmo fechamento, ver o tamanho do arquivo (pendência 1).
-4. **Cadastrar os feriados de Juiz de Fora** em `FERIADOS_LOCAIS` (o dono cola a lista).
-   Só afeta a projeção do dashboard, nunca valores pagos.
-
 ### Ideias analisadas, ainda sem decisão do dono
 
 - **Indicadores de consistência (sem GPS):** viagens duplicadas no mesmo dia, horário
@@ -287,6 +293,8 @@ gestor no aparelho (inclui `cf_cache_gestor_todas`, o histórico do dashboard). 
   o dono preferiu manter o botão em "Criar PIN".
 - **Ler o E2E de foto (OCR)**: descartado; só PDF é lido.
 - **Teclado numérico desenhado na tela do PIN**: rejeitado; usa o teclado do celular.
+- **Integração automática com o dashboard financeiro** (anexar e alterar o
+  `couveflor-dashboard` a partir daqui): descartada em 2026-10-20; fica o CSV manual.
 
 ## Como testar localmente
 

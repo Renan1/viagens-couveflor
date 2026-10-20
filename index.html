@@ -312,7 +312,7 @@
 const API = "https://script.google.com/macros/s/AKfycbyb3mIEaspqZPGhbWofnaqfZ7YwMV9URH0usuFylEIY7AFe8BKq2jlzzfMqZDyrpM4M/exec";
 /* ————————————————————————————————————————————————————————— */
 
-const VERSAO = "6.2";
+const VERSAO = "6.3";
 
 const TIPOS = {
   ida:   {sigla:"IDA",   rotulo:"Levar equipe",  sub:"casa → empresa", cor:"var(--ida)"},
@@ -777,6 +777,8 @@ function telaGestor(){
   h += '<div class="titulo-sec"><span>Exportar dados</span></div>'+
     '<div class="grade2"><button class="btn-sec" data-acao="csvViagens">'+IC.prancheta+'Copiar viagens</button>'+
     '<button class="btn-sec" data-acao="csvPagamentos">'+IC.arquivo+'Copiar pagtos</button>'+
+    '<button class="btn-sec" data-acao="baixarViagens">'+IC.prancheta+'Baixar viagens</button>'+
+    '<button class="btn-sec" data-acao="baixarPagamentos">'+IC.arquivo+'Baixar pagtos</button>'+
     '<button class="btn-sec" data-acao="recarregar">'+IC.girar+'Atualizar</button>'+
     '<button class="btn-sec" data-acao="testar">⚡ Testar conexão</button></div>';
   if(E.diagnostico) h += '<pre>'+esc(E.diagnostico)+'</pre>';
@@ -851,7 +853,7 @@ async function carregarTodas(){
 
 /* dias úteis: segunda a sexta, menos feriados nacionais (fixos + Carnaval, Sexta-feira Santa e Corpus Christi).
    Feriado municipal ou folga da empresa: liste em FERIADOS_LOCAIS. "MM-DD" vale todo ano; "AAAA-MM-DD" vale só naquele dia. */
-const FERIADOS_LOCAIS = [];
+const FERIADOS_LOCAIS = ["06-13"]; // Santo Antônio (Lei municipal 8.733/1995). Corpus Christi já entra pelo cálculo da Páscoa.
 const dataDe = iso => { const [a,m,d] = String(iso).split("-").map(Number); return new Date(a, m-1, d); };
 const isoDe = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
 const somaDias = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate()+n);
@@ -1370,28 +1372,10 @@ const ACOES = {
     pintar();
   },
 
-  csvViagens(){
-    const vs = (E.dados.viagens||[]).slice().sort((a,b)=>(a.data+a.hora).localeCompare(b.data+b.hora));
-    const pagos = {};
-    (E.dados.pagamentos||[]).forEach(p => { pagos[p.id] = p; });
-    const linhas = ["motorista;data;hora;tipo;valor;descricao;enviado_em;situacao;pago_em"].concat(vs.map(v => {
-      const [a,m,d] = v.data.split("-");
-      const p = v.pagamento ? pagos[v.pagamento] : null;
-      return [v.nome, d+"/"+m+"/"+a, v.hora, (TIPOS[v.tipo]||{}).sigla||v.tipo,
-              Number(v.valor).toFixed(2).replace(".",","), v.descricao, v.enviado,
-              v.pagamento ? "pago" : "em aberto", p ? String(p.pagoEm).split(" ")[0] : ""].map(celula).join(";");
-    }));
-    copiarCsv(linhas.join("\n"), "Viagens do mês copiadas.");
-  },
-  csvPagamentos(){
-    const pgs = (E.dados.pagamentos||[]).slice().sort((a,b)=>String(a.ate).localeCompare(String(b.ate)));
-    // e2e vai no fim para não deslocar as colunas que o dashboard já lê
-    const linhas = ["motorista;periodo_de;periodo_ate;viagens;valor;pago_em;observacao;e2e"].concat(pgs.map(p => {
-      return [p.nome, curto(p.de)+"/"+String(p.de).slice(0,4), curto(p.ate)+"/"+String(p.ate).slice(0,4),
-              p.qtd, Number(p.valor).toFixed(2).replace(".",","), p.pagoEm, p.obs, p.e2e].map(celula).join(";");
-    }));
-    copiarCsv(linhas.join("\n"), "Pagamentos copiados — é o que vai para o dashboard financeiro.");
-  },
+  csvViagens(){ copiarCsv(textoCsvViagens(), "Viagens do mês copiadas."); },
+  csvPagamentos(){ copiarCsv(textoCsvPagamentos(), "Pagamentos copiados — é o que vai para o dashboard financeiro."); },
+  baixarViagens(){ baixarCsv("viagens-" + E.mes + ".csv", textoCsvViagens(), true); },
+  baixarPagamentos(){ baixarCsv("pagamentos-" + hojeISO() + ".csv", textoCsvPagamentos(), false); },
 
   copiarLink(b){
     const url = location.origin + location.pathname + "?m=" + b.dataset.id;
@@ -1450,6 +1434,41 @@ const ACOES = {
   }
 };
 
+function textoCsvViagens(){
+  const vs = (E.dados.viagens||[]).slice().sort((a,b)=>(a.data+a.hora).localeCompare(b.data+b.hora));
+  const pagos = {};
+  (E.dados.pagamentos||[]).forEach(p => { pagos[p.id] = p; });
+  return ["motorista;data;hora;tipo;valor;descricao;enviado_em;situacao;pago_em"].concat(vs.map(v => {
+    const [a,m,d] = v.data.split("-");
+    const p = v.pagamento ? pagos[v.pagamento] : null;
+    return [v.nome, d+"/"+m+"/"+a, v.hora, (TIPOS[v.tipo]||{}).sigla||v.tipo,
+            Number(v.valor).toFixed(2).replace(".",","), v.descricao, v.enviado,
+            v.pagamento ? "pago" : "em aberto", p ? String(p.pagoEm).split(" ")[0] : ""].map(celula).join(";");
+  })).join("\n");
+}
+function textoCsvPagamentos(){
+  const pgs = (E.dados.pagamentos||[]).slice().sort((a,b)=>String(a.ate).localeCompare(String(b.ate)));
+  // e2e vai no fim para não deslocar as colunas que o dashboard já lê
+  return ["motorista;periodo_de;periodo_ate;viagens;valor;pago_em;observacao;e2e"].concat(pgs.map(p => {
+    return [p.nome, curto(p.de)+"/"+String(p.de).slice(0,4), curto(p.ate)+"/"+String(p.ate).slice(0,4),
+            p.qtd, Number(p.valor).toFixed(2).replace(".",","), p.pagoEm, p.obs, p.e2e].map(celula).join(";");
+  })).join("\n");
+}
+/* Baixa como arquivo. O BOM faz o Excel abrir os acentos certos, mas um leitor de máquina pode
+   engolir o BOM no nome da primeira coluna: o arquivo de pagamentos (vai para o dashboard
+   financeiro) sai idêntico ao "copiar", sem BOM; o de viagens (para o Excel) sai com BOM. */
+function baixarCsv(nome, texto, comBom){
+  try {
+    const blob = new Blob([(comBom ? "\ufeff" : "") + texto], {type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    E.aviso = "Arquivo " + nome + " baixado."; E.avisoBom = true;
+  } catch(e){
+    E.aviso = "Não deu para baixar o arquivo neste aparelho. Use o botão de copiar."; E.avisoBom = false;
+  }
+  pintar();
+}
 function copiarCsv(texto, recado){
   E.csv = texto;
   if(navigator.clipboard) navigator.clipboard.writeText(texto).catch(()=>{});
