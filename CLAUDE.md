@@ -147,9 +147,11 @@ gestor no aparelho (inclui `cf_cache_gestor_todas`, o histórico do dashboard). 
 
 ## Estado em 2026-10-20
 
-- **No ar:** `index.html` **6.3** + `Code.gs` 6 (inalterado). A 6.2 (Dashboard de
+- **No ar:** `index.html` **6.4** + `Code.gs` 6 (inalterado). A 6.2 (Dashboard de
   viagens) foi juntada ao `main` em 2026-10-20, com o ok do dono, que já tinha testado o
-  branch com dados reais; a 6.3 (baixar CSV) foi juntada no mesmo dia, também com ok.
+  branch com dados reais; a 6.3 (baixar CSV) foi juntada no mesmo dia, também com ok; a
+  6.4 (projeção por tipo de dia) foi validada pelo dono com dados reais e juntada em
+  2026-10-21.
   GitHub Pages leva alguns minutos para refletir.
 - **Dashboard de viagens (6.2), o que mostra** (mês escolhido no seletor):
   - resumo: total, viagens, média por viagem, comparado ao mês anterior (mesmo período se
@@ -185,7 +187,7 @@ gestor no aparelho (inclui `cf_cache_gestor_todas`, o histórico do dashboard). 
   projeção, nunca o valor pago.
 - **Pagamento mensal a partir de outubro/2026**; fechamento de outubro será feito no dia
   do PIX (começo de novembro) com "até 31/10". Ver "Fechar = pagar" nas regras.
-- **6.4 (branch `projecao-dias-corridos`, aguardando ok do dono para juntar ao `main`):**
+- **6.4 (projeção por tipo de dia, no ar):**
   a projeção deixou de tratar fim de semana como "avulso" e passou a medir dia útil e
   dia não útil separadamente (ver acima). Testada com 4 cenários simulados de conta
   conhecida (trabalham todo dia; só dias úteis; mês-base sem fim de semana com e sem
