@@ -12,6 +12,33 @@ abrir uma sessão nesta pasta. Mantenha-o atualizado ao fechar cada etapa.
 - Publicar no `main` = publicar para os motoristas (GitHub Pages). Trabalhe em branch,
   teste, e só junte ao `main` com aprovação.
 
+## Onde parei — ler primeiro (atualizado em 2026-11-09)
+
+- **No ar:** `index.html` 6.4 + `Code.gs` 6. Nenhuma mudança de código desde 2026-10-20.
+  Todos os branches já estão juntados ao `main` (os antigos podem ser apagados).
+- **Último trabalho (2026-10-21):** guia do operador com 17 prints (dados fictícios),
+  publicado como documento no claude.ai — ver "Documentos fora do repositório".
+- **Primeira coisa a fazer no próximo chat:** perguntar ao dono como foi o **fechamento
+  de outubro** (previsto para o começo de novembro, primeiro pagamento mensal):
+  1. o comprovante veio em **PDF** e o E2E foi preenchido sozinho? (pendência 3 — a
+     leitura de PDF nunca foi testada com PDF real de banco);
+  2. o **tamanho do arquivo** apareceu em "Ver comprovante"? (pendência 1);
+  3. o CSV "Baixar pagtos" entrou no dashboard financeiro sem duplicar valores?
+     (pendência 2).
+- **Próxima tarefa de desenvolvimento:** indicadores de consistência (seção "Próxima
+  tarefa"). **Ainda sem código** — combinar os limites com o dono antes.
+
+## Documentos fora do repositório
+
+- **Guia do operador** (motorista e gestor, com prints):
+  https://claude.ai/artifact/P3zBYwtcd5YudLdsQqy9jM — feito na 6.4 em 2026-10-21. Prints
+  gerados com `ferramentas/simulador-guia.js` (ver "Como testar localmente"). Se uma tela
+  mudar, refazer o print correspondente e trocar no documento.
+- **Como o sistema funciona e foi desenhado** (arquitetura, regras, histórico):
+  https://claude.ai/code/artifact/29c5610f-2227-4939-922e-307adad8aa97 — escrito em
+  2026-10-06, **desatualizado**: a seção "Desenho visual" descreve o visual 5.x (antes do
+  redesign 6.0) e não tem chave PIX, dashboard nem CSV. Atualizar se o dono pedir.
+
 ## O que o sistema faz
 
 Controla as viagens que motoristas prestadores fazem para a empresa: levar a equipe de
@@ -243,7 +270,7 @@ gestor no aparelho (inclui `cf_cache_gestor_todas`, o histórico do dashboard). 
 3. Conferir com `?acao=ping` a versão nova.
 4. Só então juntar o branch do site ao `main`.
 
-## Pendências (revisadas com o dono em 2026-10-07)
+## Pendências (revisadas com o dono em 2026-10-07 e 2026-10-20; situação a confirmar em novembro)
 
 ### Aprovadas, a fazer
 
@@ -322,3 +349,13 @@ com respostas simuladas e chamar `carregar()`. Ao final, `localStorage.clear()`.
 Para o dashboard, o simulado precisa responder `acao:"gestor"` com `viagens` (todas, sem
 `mes`), `motoristas` (`id`, `nome`, `tarifa`) e `hojeISO`. Em teste automatizado
 (Playwright), `localStorage.cf_pin` e `cf_pin_ate` (data futura) pulam a tela do PIN.
+
+**Simulador pronto (`ferramentas/simulador-guia.js`):** troca o `fetch` por um servidor
+falso com 2 motoristas fictícios (Carlos Souza, R$ 50; Ana Lima, R$ 55), viagens de
+03/08 a 21/10/2026, pagamentos de agosto e setembro, e responde todas as ações (motorista,
+registrar, cancelar, gestor com ou sem `mes`, fechar, anexar, editar motorista). PIN do
+simulador: `1234` (só existe no simulador). Uso, no console da página servida localmente:
+`eval(await (await fetch('/ferramentas/simulador-guia.js')).text())`, depois
+`E.token = "mcarlos00001"; await carregar()` para ver como motorista, ou
+`E.token = null; E.pin = "1234"; await carregar()` para o painel. Foi com ele que saíram
+os prints do guia (viewport de celular 375×812). Nunca aponta para a planilha real.
