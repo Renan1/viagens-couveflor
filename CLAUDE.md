@@ -18,10 +18,9 @@ abrir uma sessão nesta pasta. Mantenha-o atualizado ao fechar cada etapa.
   `avisos-viagens` no Cloudflare — **avisos no celular do gestor** (Web Push). Ver seção
   "Avisos no celular". Worker, variáveis, Propriedades do script e `testarAviso` foram
   feitos pelo dono e conferidos; o branch `avisos-push` foi juntado ao `main`.
-- **Primeira coisa no próximo chat (antes do fechamento de outubro):** perguntar se os
-  avisos **chegaram no iPhone** — ativação ("Avisos ativados"), "Enviar teste" e um
-  registro real de motorista. Até o dono confirmar, a entrega real é o único trecho não
-  testado.
+- **Avisos confirmados no iPhone do dono em 2026-11-18** (chegou o "Avisos ativados").
+  Próximo chat: perguntar se os avisos de **registro real de motorista** estão chegando
+  e se o texto está bom.
 - **Discutido em 2026-11-09/18, sem decisão:** trocar a planilha por banco. Medido: o
   `ping` leva 2,5–4 s e quase tudo é o Apps Script subindo, não a planilha. Recomendação:
   Cloudflare Workers + D1 (o dono já usa Cloudflare; plano gratuito sobra). Perda: deixar
@@ -44,7 +43,7 @@ abrir uma sessão nesta pasta. Mantenha-o atualizado ao fechar cada etapa.
   https://claude.ai/artifact/P3zBYwtcd5YudLdsQqy9jM — feito na 6.4 em 2026-10-21. Prints
   gerados com `ferramentas/simulador-guia.js` (ver "Como testar localmente"). Se uma tela
   mudar, refazer o print correspondente e trocar no documento. **Falta a seção "Avisos
-  no celular" (6.5)** — fazer depois que o dono confirmar que chegam no iPhone (o
+  no celular" (6.5)** — já pode ser feita: os avisos chegam no iPhone (o
   simulador ainda não responde as ações `push_*`; é preciso o simulado da seção "Como
   testar localmente").
 - **Como o sistema funciona e foi desenhado** (arquitetura, regras, histórico):
@@ -139,8 +138,7 @@ leitura aceita os dois formatos (`comoData`, `comoHora`, `comoEnvio`).
   (13 cenários: textos, fila, 410, Worker fora do ar); telas no Chromium com aparelho
   simulado. Publicação conferida pelo dono: Worker responde `{"ok":true,"servico":
   "avisos","versao":1}`; `testarAviso` deu "nenhum aparelho ativado" (esperado); `ping`
-  com versão 7. **A confirmar com o dono:** entrega real no iPhone (o navegador de teste
-  bloqueia notificações).
+  com versão 7. **Entrega real no iPhone confirmada pelo dono em 2026-11-18.**
 - **Passo a passo de publicação e o que fazer quando não chega:** `worker/COMO-PUBLICAR.md`.
 - **Trocar as chaves** obriga a ativar os avisos de novo no iPhone (a inscrição antiga
   foi feita com a chave pública velha; o app detecta e refaz ao tocar em Ativar).
