@@ -1,1 +1,5 @@
 .claude/settings.local.json
+
+# chaves e segredos locais (avisos push) — nunca publicar
+Chaves*.txt
+*.chaves.txt
