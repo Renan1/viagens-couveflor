@@ -14,19 +14,21 @@ abrir uma sessão nesta pasta. Mantenha-o atualizado ao fechar cada etapa.
 
 ## Onde parei — ler primeiro (atualizado em 2026-11-18)
 
-- **Em andamento (branch `avisos-push`, NÃO publicado):** avisos no celular do gestor
-  (Web Push) — `index.html` 6.5 + `sw.js` + `Code.gs` 7 + Worker do Cloudflare
-  (`worker/push.js`). Passo a passo em `worker/COMO-PUBLICAR.md`. Falta: o dono gerar as
-  chaves, criar o Worker, configurar o Apps Script, publicar e testar no iPhone. Ver
-  "Avisos no celular" abaixo.
-- **No ar:** `index.html` 6.4 + `Code.gs` 6. Nenhuma mudança de código no ar desde 2026-10-20.
+- **No ar (2026-11-18):** `index.html` 6.5 + `sw.js` + `Code.gs` 7 + Worker
+  `avisos-viagens` no Cloudflare — **avisos no celular do gestor** (Web Push). Ver seção
+  "Avisos no celular". Worker, variáveis, Propriedades do script e `testarAviso` foram
+  feitos pelo dono e conferidos; o branch `avisos-push` foi juntado ao `main`.
+- **Primeira coisa no próximo chat (antes do fechamento de outubro):** perguntar se os
+  avisos **chegaram no iPhone** — ativação ("Avisos ativados"), "Enviar teste" e um
+  registro real de motorista. Até o dono confirmar, a entrega real é o único trecho não
+  testado.
 - **Discutido em 2026-11-09/18, sem decisão:** trocar a planilha por banco. Medido: o
   `ping` leva 2,5–4 s e quase tudo é o Apps Script subindo, não a planilha. Recomendação:
   Cloudflare Workers + D1 (o dono já usa Cloudflare; plano gratuito sobra). Perda: deixar
   de mexer na planilha à mão — perguntar ao dono quanto ele faz isso.
 - **Último trabalho (2026-10-21):** guia do operador com 17 prints (dados fictícios),
   publicado como documento no claude.ai — ver "Documentos fora do repositório".
-- **Primeira coisa a fazer no próximo chat:** perguntar ao dono como foi o **fechamento
+- **Depois:** perguntar ao dono como foi o **fechamento
   de outubro** (previsto para o começo de novembro, primeiro pagamento mensal):
   1. o comprovante veio em **PDF** e o E2E foi preenchido sozinho? (pendência 3 — a
      leitura de PDF nunca foi testada com PDF real de banco);
@@ -41,7 +43,10 @@ abrir uma sessão nesta pasta. Mantenha-o atualizado ao fechar cada etapa.
 - **Guia do operador** (motorista e gestor, com prints):
   https://claude.ai/artifact/P3zBYwtcd5YudLdsQqy9jM — feito na 6.4 em 2026-10-21. Prints
   gerados com `ferramentas/simulador-guia.js` (ver "Como testar localmente"). Se uma tela
-  mudar, refazer o print correspondente e trocar no documento.
+  mudar, refazer o print correspondente e trocar no documento. **Falta a seção "Avisos
+  no celular" (6.5)** — fazer depois que o dono confirmar que chegam no iPhone (o
+  simulador ainda não responde as ações `push_*`; é preciso o simulado da seção "Como
+  testar localmente").
 - **Como o sistema funciona e foi desenhado** (arquitetura, regras, histórico):
   https://claude.ai/code/artifact/29c5610f-2227-4939-922e-307adad8aa97 — escrito em
   2026-10-06, **desatualizado**: a seção "Desenho visual" descreve o visual 5.x (antes do
@@ -79,6 +84,11 @@ por dia útil. Volume anual na casa de 1.000 linhas.
   `index.html`. Só leitura, só gestor. Pede o histórico inteiro de uma vez (ação
   `gestor` **sem** `mes` devolve todas as viagens) e calcula tudo no aparelho; não usa
   rota nova do `Code.gs`. Gráfico em SVG feito à mão, sem biblioteca.
+- **Avisos (6.5 / `Code.gs` 7):** Worker `avisos-viagens` no Cloudflare (conta do dono,
+  `*.workers.dev`), só para cifrar e entregar o Web Push. Sem banco, sem estado.
+  `worker/push.js` é cópia do que roda no painel do Cloudflare (Edit code → colar →
+  Deploy). As chaves estão nas variáveis do Worker e nas Propriedades do script, nunca no
+  repositório; o `.gitignore` barra `Chaves*.txt`.
 - O `Code.gs` do repositório é **cópia**: quem roda é o código colado no editor do
   Apps Script. Mantenha os dois iguais.
 
@@ -100,7 +110,11 @@ precisa. (A máquina do trabalho tem Node 24, o que viabiliza `clasp` — ver pe
 - **Propriedades do script (v7, fora da planilha):** `PUSH_URL`, `PUSH_SEGREDO`,
   `PUSH_CHAVE`. Segredos ficam aqui, nunca no repositório (é público).
 
-## Avisos no celular (Web Push, branch `avisos-push`, 2026-11-18)
+Datas e horas são **texto** (`AAAA-MM-DD` e `HH:MM`), com as colunas formatadas como
+texto. Gravadas como data real, o Google converte e os filtros por mês quebram. A
+leitura aceita os dois formatos (`comoData`, `comoHora`, `comoEnvio`).
+
+## Avisos no celular (Web Push, no ar desde 2026-11-18)
 
 - **Pedido do dono:** um aviso no iPhone a cada IDA, VOLTA, EXTRA e cancelamento, a
   qualquer hora, **só para ele**. Escolheu Web Push (aviso do próprio app) em vez de
@@ -123,13 +137,14 @@ precisa. (A máquina do trabalho tem Node 24, o que viabiliza `clasp` — ver pe
 - **Testado (2026-11-18):** criptografia igual ao vetor da RFC 8291; assinatura VAPID
   válida; Worker recusa senha errada e host estranho; `Code.gs` rodado com planilha falsa
   (13 cenários: textos, fila, 410, Worker fora do ar); telas no Chromium com aparelho
-  simulado. **Não testado:** entrega real no iPhone (o navegador de teste bloqueia
-  notificações).
+  simulado. Publicação conferida pelo dono: Worker responde `{"ok":true,"servico":
+  "avisos","versao":1}`; `testarAviso` deu "nenhum aparelho ativado" (esperado); `ping`
+  com versão 7. **A confirmar com o dono:** entrega real no iPhone (o navegador de teste
+  bloqueia notificações).
+- **Passo a passo de publicação e o que fazer quando não chega:** `worker/COMO-PUBLICAR.md`.
+- **Trocar as chaves** obriga a ativar os avisos de novo no iPhone (a inscrição antiga
+  foi feita com a chave pública velha; o app detecta e refaz ao tocar em Ativar).
 - Ao migrar o resto para o Cloudflare, o Worker já existe; a inscrição pode ir para o D1.
-
-Datas e horas são **texto** (`AAAA-MM-DD` e `HH:MM`), com as colunas formatadas como
-texto. Gravadas como data real, o Google converte e os filtros por mês quebram. A
-leitura aceita os dois formatos (`comoData`, `comoHora`, `comoEnvio`).
 
 ## Identidade e acesso
 
@@ -303,7 +318,8 @@ gestor no aparelho (inclui `cf_cache_gestor_todas`, o histórico do dashboard). 
 2. Implantar → Gerenciar implantações → lápis → **Nova versão**.
    **Implantar não pede autorização nova.** Se o código passar a usar outro serviço
    do Google (ex.: Drive), rodar pelo editor uma função que o use (no caso do Drive,
-   `pastaComprovantes`) e aprovar — senão a chamada falha com "sem permissão".
+   `pastaComprovantes`) e aprovar — senão a chamada falha com "sem permissão". Na v7
+   (acesso externo, `UrlFetchApp`) a função é `testarAviso`.
    A troca de versão pode levar alguns minutos para o `ping` refletir.
 3. Conferir com `?acao=ping` a versão nova.
 4. Só então juntar o branch do site ao `main`.
@@ -397,3 +413,7 @@ simulador: `1234` (só existe no simulador). Uso, no console da página servida 
 `E.token = "mcarlos00001"; await carregar()` para ver como motorista, ou
 `E.token = null; E.pin = "1234"; await carregar()` para o painel. Foi com ele que saíram
 os prints do guia (viewport de celular 375×812). Nunca aponta para a planilha real.
+Ele **não responde** `push_*` nem manda o campo `push` no `gestor`: o painel mostra
+"servidor desatualizado" na seção Avisos. Para testar os avisos, embrulhar o `fetch` do
+simulador acrescentando `push: {pronto, chave, fim, erro}` e simular
+`navigator.serviceWorker`/`Notification` (o navegador de teste nega notificações).

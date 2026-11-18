@@ -1,5 +1,9 @@
 # Avisos no celular — como publicar (index.html 6.5 + Code.gs 7 + Worker)
 
+**Situação em 2026-11-18:** passos 1 a 4 feitos (Worker `avisos-viagens` no ar, Code.gs 7
+publicado, site 6.5 no `main`). Falta o passo 5 no iPhone. Este roteiro fica para refazer
+tudo (outra conta, chaves novas) ou investigar quando um aviso não chegar.
+
 A ordem importa. Cada etapa só depende da anterior.
 
 ## 1. Gerar as chaves (uma vez só)
