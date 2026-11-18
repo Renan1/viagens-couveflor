@@ -312,7 +312,7 @@
 const API = "https://script.google.com/macros/s/AKfycbyb3mIEaspqZPGhbWofnaqfZ7YwMV9URH0usuFylEIY7AFe8BKq2jlzzfMqZDyrpM4M/exec";
 /* ————————————————————————————————————————————————————————— */
 
-const VERSAO = "6.4";
+const VERSAO = "6.5";
 
 const TIPOS = {
   ida:   {sigla:"IDA",   rotulo:"Levar equipe",  sub:"casa → empresa", cor:"var(--ida)"},
@@ -410,7 +410,8 @@ const E = {
   vista: "painel",          // "painel" ou "dash" (só o gestor)
   todas: null,              // histórico completo para o dashboard: {viagens, motoristas}
   carregandoDash: false,
-  dadosMes: null            // mês de E.dados (para saber se o painel precisa recarregar)
+  dadosMes: null,           // mês de E.dados (para saber se o painel precisa recarregar)
+  pushLocal: null           // avisos neste aparelho: {suporte, ios, instalado, permissao, fim, verificado}
 };
 
 /* ————— comunicação: tudo por GET, com tempo limite e novas tentativas ————— */
@@ -495,6 +496,7 @@ async function carregar(){
         if(E.vista !== "dash") E.todas = null; // o painel mudou algo (fechamento, cancelamento…): o histórico do dashboard envelheceu
         // só um PIN recém-digitado ganha prazo novo; abrir o app de novo não renova
         if(localStorage.getItem("cf_pin") !== E.pin) guardarPin(E.pin);
+        verificarPush();
       }
       else { E.liberado = false; E.aviso = r.erro; E.avisoBom = false; }
     }
@@ -773,6 +775,8 @@ function telaGestor(){
       '<button class="btn-pix" data-acao="abrirFechamento" data-id="'+esc(m.id)+'">Fechar PIX</button></div>';
   }
 
+  h += blocoAvisos(d);
+
   // ——— exportar ———
   h += '<div class="titulo-sec"><span>Exportar dados</span></div>'+
     '<div class="grade2"><button class="btn-sec" data-acao="csvViagens">'+IC.prancheta+'Copiar viagens</button>'+
@@ -820,6 +824,60 @@ function telaGestor(){
   h += '<div class="titulo-sec"><span>Viagens de '+mesLongo(E.mes)+'</span></div>';
   h += listar(vs, {nome:true, cancelar:"cancelarG"});
   return h;
+}
+
+/* ————— avisos no celular do gestor (Web Push, 6.5) —————
+   Um aviso a cada viagem registrada ou cancelada pelo motorista. Só um aparelho recebe:
+   ativar em outro substitui. O service worker (sw.js) só é registrado ao tocar em "Ativar",
+   então aparelho de motorista nunca o recebe. A criptografia fica num Worker do Cloudflare,
+   chamado pelo Code.gs 7; o app só manda a inscrição deste aparelho ao Code.gs, com o PIN. */
+const deB64u = s => { const t = String(s||"").replace(/-/g,"+").replace(/_/g,"/"); const b = atob(t + "===".slice((t.length+3)%4));
+  return Uint8Array.from(b, c => c.charCodeAt(0)); };
+const paraB64u = buf => btoa(String.fromCharCode.apply(null, new Uint8Array(buf))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const FIM_PUSH = 24; // o servidor identifica o aparelho inscrito pelo final do endpoint (Code.gs: situacaoPush)
+
+async function verificarPush(){
+  const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const instalado = navigator.standalone === true || (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+  const suporte = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const L = {suporte:suporte, ios:ios, instalado:instalado, permissao: suporte ? Notification.permission : "", fim:"", verificado:false};
+  if(suporte){
+    try{
+      const reg = await navigator.serviceWorker.getRegistration();
+      const sub = reg && await reg.pushManager.getSubscription();
+      if(sub) L.fim = sub.endpoint.slice(-FIM_PUSH);
+    } catch(e){}
+  }
+  L.verificado = true; E.pushLocal = L;
+  if(E.liberado && E.vista !== "dash") pintar();
+}
+
+function blocoAvisos(d){
+  const p = d.push, L = E.pushLocal || {};
+  let h = '<div class="titulo-sec"><span>Avisos no celular</span></div><div class="bloco">';
+  if(!p) return h + '<p class="ajuda">O servidor está desatualizado: publique o Code.gs versão 7 para usar os avisos.</p></div>';
+  if(!p.pronto) return h + '<p class="ajuda">Falta configurar o serviço de avisos (Worker do Cloudflare e Propriedades do script).</p></div>';
+  if(!L.verificado) return h + '<p class="ajuda">Conferindo este aparelho…</p></div>';
+  if(!L.suporte){
+    return h + '<p class="ajuda">'+(L.ios && !L.instalado
+      ? 'No iPhone, os avisos só funcionam no app instalado: no Safari, toque em Compartilhar → Adicionar à Tela de Início, e abra pelo ícone.'
+      : 'Este navegador não recebe avisos. No iPhone, use o app instalado na tela de início (iOS 16.4 ou mais novo).')+'</p></div>';
+  }
+  const aqui = !!p.fim && L.fim === p.fim;
+  if(aqui){
+    h += '<div class="resumo" style="margin-top:0"><span style="color:var(--volta);font-weight:700">✓ Ativos neste aparelho</span></div>'+
+      '<p class="ajuda">Chega um aviso a cada viagem registrada ou cancelada pelos motoristas.</p>'+
+      '<div class="grade2"><button class="btn-sec" data-acao="testarPush" '+(E.ocupado?"disabled":"")+'>Enviar teste</button>'+
+      '<button class="btn-sec" data-acao="desativarPush" '+(E.ocupado?"disabled":"")+'>Desativar</button></div>';
+  } else {
+    h += '<p class="ajuda">'+(p.fim
+      ? 'Os avisos estão indo para outro aparelho. Ativar aqui faz este passar a receber, e o outro para.'
+      : 'Receba no celular um aviso a cada viagem registrada ou cancelada pelos motoristas.')+'</p>'+
+      '<button class="btn-principal" data-acao="ativarPush" '+(E.ocupado?"disabled":"")+'>'+(p.fim ? 'Receber os avisos neste aparelho' : 'Ativar avisos')+'</button>';
+  }
+  if(L.permissao === "denied") h += '<p class="ajuda" style="color:var(--ida)">As notificações deste app estão bloqueadas no aparelho. No iPhone: Ajustes → Notificações → Viagens → Permitir Notificações.</p>';
+  if(p.erro) h += '<p class="ajuda">Último problema: '+esc(p.erro)+'</p>';
+  return h + '</div>';
 }
 
 /* ————— dashboard do gestor —————
@@ -1340,6 +1398,62 @@ const ACOES = {
       if(r.ok){ E.detalhe = null; E.aviso = "Pagamento desfeito."; E.avisoBom = true; await carregar(); }
       else { E.aviso = r.erro; E.avisoBom = false; E.ocupado = false; pintar(); }
     } catch(e){ E.aviso = "Não deu para desfazer agora: "+e.message; E.avisoBom = false; E.ocupado = false; pintar(); }
+  },
+
+  async ativarPush(){
+    if(E.ocupado || !E.dados || !E.dados.push) return;
+    // o iPhone só mostra o pedido de permissão se ele vier direto do toque: nada de espera antes
+    let perm = "default";
+    try { perm = await Notification.requestPermission(); } catch(e){}
+    if(E.pushLocal) E.pushLocal.permissao = perm;
+    if(perm !== "granted"){
+      E.aviso = perm === "denied" ? "As notificações estão bloqueadas neste aparelho. No iPhone: Ajustes → Notificações → Viagens → Permitir."
+                                  : "Permissão não concedida. Toque em Ativar avisos de novo e escolha Permitir.";
+      E.avisoBom = false; return pintar();
+    }
+    E.ocupado = true; E.aviso = "Ativando avisos…"; E.avisoBom = true; pintar();
+    try{
+      const reg = await navigator.serviceWorker.register("sw.js");
+      await navigator.serviceWorker.ready;
+      const chave = E.dados.push.chave;
+      let sub = await reg.pushManager.getSubscription();
+      // inscrição feita com outra chave (as chaves do Worker foram trocadas): refazer
+      if(sub && sub.options && sub.options.applicationServerKey && paraB64u(sub.options.applicationServerKey) !== chave){ await sub.unsubscribe(); sub = null; }
+      if(!sub) sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey: deB64u(chave)});
+      const r = await chamar({acao:"push_inscrever", pin:E.pin, inscricao: sub.toJSON()}, 2);
+      if(!r.ok) throw new Error(r.erro || "o servidor recusou");
+      E.dados.push = r.push; E.pushLocal.fim = sub.endpoint.slice(-FIM_PUSH);
+      E.aviso = r.enviado ? "Avisos ativados. Um aviso de confirmação deve chegar agora."
+                          : "Aparelho inscrito, mas o aviso de confirmação não saiu: " + r.erroEnvio;
+      E.avisoBom = !!r.enviado;
+    } catch(e){ E.aviso = "Não deu para ativar os avisos: " + e.message; E.avisoBom = false; }
+    E.ocupado = false; pintar();
+  },
+  async testarPush(){
+    E.ocupado = true; E.aviso = "Enviando aviso de teste…"; E.avisoBom = true; pintar();
+    try{
+      const r = await chamar({acao:"push_testar", pin:E.pin}, 2);
+      if(r.push) E.dados.push = r.push;
+      E.aviso = r.ok ? "Aviso de teste enviado." : r.erro; E.avisoBom = !!r.ok;
+    } catch(e){ E.aviso = "Não deu para testar agora: " + e.message; E.avisoBom = false; }
+    E.ocupado = false; pintar();
+  },
+  async desativarPush(){
+    if(!confirm("Parar de receber avisos de viagens neste aparelho?")) return;
+    E.ocupado = true; pintar();
+    try{
+      const r = await chamar({acao:"push_remover", pin:E.pin}, 2);
+      if(!r.ok) throw new Error(r.erro || "o servidor recusou");
+      E.dados.push = r.push;
+      try{
+        const reg = await navigator.serviceWorker.getRegistration();
+        const sub = reg && await reg.pushManager.getSubscription();
+        if(sub) await sub.unsubscribe();
+      } catch(e){}
+      if(E.pushLocal) E.pushLocal.fim = "";
+      E.aviso = "Avisos desativados."; E.avisoBom = true;
+    } catch(e){ E.aviso = "Não deu para desativar agora: " + e.message; E.avisoBom = false; }
+    E.ocupado = false; pintar();
   },
 
   sair(){

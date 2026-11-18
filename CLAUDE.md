@@ -12,10 +12,18 @@ abrir uma sessão nesta pasta. Mantenha-o atualizado ao fechar cada etapa.
 - Publicar no `main` = publicar para os motoristas (GitHub Pages). Trabalhe em branch,
   teste, e só junte ao `main` com aprovação.
 
-## Onde parei — ler primeiro (atualizado em 2026-11-09)
+## Onde parei — ler primeiro (atualizado em 2026-11-18)
 
-- **No ar:** `index.html` 6.4 + `Code.gs` 6. Nenhuma mudança de código desde 2026-10-20.
-  Todos os branches já estão juntados ao `main` (os antigos podem ser apagados).
+- **Em andamento (branch `avisos-push`, NÃO publicado):** avisos no celular do gestor
+  (Web Push) — `index.html` 6.5 + `sw.js` + `Code.gs` 7 + Worker do Cloudflare
+  (`worker/push.js`). Passo a passo em `worker/COMO-PUBLICAR.md`. Falta: o dono gerar as
+  chaves, criar o Worker, configurar o Apps Script, publicar e testar no iPhone. Ver
+  "Avisos no celular" abaixo.
+- **No ar:** `index.html` 6.4 + `Code.gs` 6. Nenhuma mudança de código no ar desde 2026-10-20.
+- **Discutido em 2026-11-09/18, sem decisão:** trocar a planilha por banco. Medido: o
+  `ping` leva 2,5–4 s e quase tudo é o Apps Script subindo, não a planilha. Recomendação:
+  Cloudflare Workers + D1 (o dono já usa Cloudflare; plano gratuito sobra). Perda: deixar
+  de mexer na planilha à mão — perguntar ao dono quanto ele faz isso.
 - **Último trabalho (2026-10-21):** guia do operador com 17 prints (dados fictícios),
   publicado como documento no claude.ai — ver "Documentos fora do repositório".
 - **Primeira coisa a fazer no próximo chat:** perguntar ao dono como foi o **fechamento
@@ -87,7 +95,37 @@ precisa. (A máquina do trabalho tem Node 24, o que viabiliza `clasp` — ver pe
   Observação | E2E | Comprovante | Tamanho  *(E2E e Comprovante a partir da versão 5;
   Tamanho, em bytes, a partir da 6)*
 - **Ajustes:** Chave | Valor — `pin`, `pin_tentativas`, `pin_bloqueado_ate`,
-  `pasta_comprovantes` (v5) e o antigo `pagos` (obsoleto).
+  `pasta_comprovantes` (v5), `push_inscricao` e `push_erro` (v7) e o antigo `pagos`
+  (obsoleto).
+- **Propriedades do script (v7, fora da planilha):** `PUSH_URL`, `PUSH_SEGREDO`,
+  `PUSH_CHAVE`. Segredos ficam aqui, nunca no repositório (é público).
+
+## Avisos no celular (Web Push, branch `avisos-push`, 2026-11-18)
+
+- **Pedido do dono:** um aviso no iPhone a cada IDA, VOLTA, EXTRA e cancelamento, a
+  qualquer hora, **só para ele**. Escolheu Web Push (aviso do próprio app) em vez de
+  Telegram.
+- **Caminho:** o Apps Script não faz a criptografia do Web Push, então um **Worker do
+  Cloudflare** (`worker/push.js`, sem banco, sem estado) cifra (RFC 8291) e assina
+  (VAPID, RFC 8292). Fluxo: o gestor toca em "Ativar avisos" → o `index.html` registra o
+  `sw.js` e manda a inscrição ao `Code.gs` (POST com PIN, `push_inscrever`) → fica em
+  Ajustes → a cada `registrar`/`cancelar` do motorista o `Code.gs` chama o Worker.
+- **Só um aparelho** recebe; ativar em outro substitui. **Cancelamento feito pelo gestor
+  não avisa** (ele mesmo fez). Reenvio da fila (`repetido`) não avisa de novo. Viagem de
+  outro dia avisa com "⚠ lançada em X, viagem de Y".
+- O aviso vai **depois de gravar e soltar a trava**; falha nunca impede o registro. Erro
+  fica em `push_erro` e aparece no painel. 404/410 do serviço de push apaga a inscrição.
+- O Worker só entrega para serviços de push conhecidos (Apple, Google, Mozilla, Windows).
+- **`sw.js` não tem `fetch` nem cache, de propósito:** um service worker com cache poderia
+  segurar versões velhas do app nos celulares. Só é registrado no aparelho que ativa os
+  avisos; motorista nunca o recebe.
+- **iPhone:** só no app adicionado à tela de início pelo Safari, iOS 16.4+.
+- **Testado (2026-11-18):** criptografia igual ao vetor da RFC 8291; assinatura VAPID
+  válida; Worker recusa senha errada e host estranho; `Code.gs` rodado com planilha falsa
+  (13 cenários: textos, fila, 410, Worker fora do ar); telas no Chromium com aparelho
+  simulado. **Não testado:** entrega real no iPhone (o navegador de teste bloqueia
+  notificações).
+- Ao migrar o resto para o Cloudflare, o Worker já existe; a inscrição pode ir para o D1.
 
 Datas e horas são **texto** (`AAAA-MM-DD` e `HH:MM`), com as colunas formatadas como
 texto. Gravadas como data real, o Google converte e os filtros por mês quebram. A

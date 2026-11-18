@@ -12,9 +12,15 @@
  *
  * Versão 6: chave PIX e banco do motorista (aba Motoristas) e tamanho do arquivo do
  * comprovante (aba Pagamentos). As colunas novas entram no fim das abas.
+ *
+ * Versão 7: avisos no celular do gestor (Web Push) a cada viagem registrada ou
+ * cancelada pelo motorista. A criptografia é feita por um Worker do Cloudflare
+ * (worker/push.js). Configuração em Propriedades do script: PUSH_URL, PUSH_SEGREDO e
+ * PUSH_CHAVE. A inscrição do aparelho fica na aba Ajustes (push_inscricao). Depois de
+ * publicar, rodar testarAviso() uma vez pelo editor para autorizar o acesso externo.
  */
 
-var VERSAO = 6;
+var VERSAO = 7;
 var ABA_V = 'Viagens';
 var ABA_M = 'Motoristas';
 var ABA_A = 'Ajustes';
@@ -263,6 +269,7 @@ function processar(p) {
     try {
       var s = abaViagens(), existentes = linhas(s);
       for (var i = 0; i < existentes.length; i++) {
+        // reenvio da fila: já gravada e já avisada
         if (String(existentes[i][0]) === String(p.id)) return { ok: true, repetido: true };
       }
       var n = s.getLastRow() + 1;
@@ -274,14 +281,20 @@ function processar(p) {
         Utilities.formatDate(new Date(), FUSO, 'dd/MM/yyyy HH:mm'), ''
       ]]);
       SpreadsheetApp.flush();
-      return { ok: true, valor: valor };
     } finally { trava.releaseLock(); }
+    // depois de gravar e de soltar a trava: o aviso nunca impede nem atrasa outro registro
+    avisarViagem('nova', { id: String(p.id), nome: mot.nome, tipo: String(p.tipo), data: String(p.data),
+                           hora: String(p.hora), valor: valor, descricao: String(p.descricao || '') });
+    return { ok: true, valor: valor };
   }
 
   if (acao === 'cancelar') {
     var dono = acharMotorista(p.t);
     if (!dono) return { ok: false, erro: 'Link inválido.' };
-    return removerLinha(p.id, dono.id, true);
+    var rc = removerLinha(p.id, dono.id, true);
+    if (rc.removida) avisarViagem('cancelada', rc.removida);
+    delete rc.removida;
+    return rc;
   }
 
   /* ----- gestor ----- */
@@ -295,7 +308,8 @@ function processar(p) {
   }
 
   var protegida = ['gestor', 'add_motorista', 'edit_motorista', 'rm_motorista', 'cancelar_g',
-       'fechar_pagamento', 'desfazer_pagamento', 'anexar_comprovante'].indexOf(acao) >= 0;
+       'fechar_pagamento', 'desfazer_pagamento', 'anexar_comprovante',
+       'push_inscrever', 'push_remover', 'push_testar'].indexOf(acao) >= 0;
 
   if (protegida && p._metodo === 'GET') return { ok: false, erro: 'Ação não permitida por este método.' };
 
@@ -313,8 +327,34 @@ function processar(p) {
       motoristas: motoristas(),
       viagens: todasG.filter(function (v) { return !p.mes || v.data.indexOf(p.mes) === 0; }),
       abertas: todasG.filter(function (v) { return !v.pagamento; }),
-      pagamentos: pagamentos()
+      pagamentos: pagamentos(),
+      push: situacaoPush()
     };
+  }
+
+  /* ----- avisos no celular (só um aparelho recebe: ativar em outro substitui) ----- */
+  if (acao === 'push_inscrever') {
+    var ins = p.inscricao;
+    if (typeof ins === 'string') { try { ins = JSON.parse(ins); } catch (err) { ins = null; } }
+    if (!ins || !/^https:\/\//.test(String(ins.endpoint || '')) || !ins.keys || !ins.keys.p256dh || !ins.keys.auth) {
+      return { ok: false, erro: 'O aparelho não mandou uma inscrição válida.' };
+    }
+    gravarAjuste('push_inscricao', JSON.stringify({ endpoint: String(ins.endpoint),
+      keys: { p256dh: String(ins.keys.p256dh), auth: String(ins.keys.auth) } }));
+    gravarAjuste('push_erro', '');
+    var envio = enviarPush('Avisos ativados', 'Este aparelho vai receber um aviso a cada viagem registrada ou cancelada.', 'ativado');
+    return { ok: true, enviado: envio.ok, erroEnvio: envio.erro || '', push: situacaoPush() };
+  }
+
+  if (acao === 'push_remover') {
+    gravarAjuste('push_inscricao', '');
+    gravarAjuste('push_erro', '');
+    return { ok: true, push: situacaoPush() };
+  }
+
+  if (acao === 'push_testar') {
+    var teste = enviarPush('Teste de aviso', 'Se você está lendo isto, os avisos estão funcionando.', 'teste');
+    return { ok: teste.ok, erro: teste.ok ? '' : 'O aviso não saiu: ' + teste.erro, push: situacaoPush() };
   }
 
   if (acao === 'fechar_pagamento') {
@@ -485,13 +525,86 @@ function removerLinha(id, donoObrigatorio, somenteHoje) {
         if (somenteHoje && comoEnvio(l[i][8]).indexOf(hojeBR()) !== 0) {
           return { ok: false, erro: 'Só dá para cancelar o que foi lançado hoje. Fale com o gestor.' };
         }
+        var removida = mapaViagem(l[i]);
         s.deleteRow(i + 1);
         SpreadsheetApp.flush();
-        return { ok: true };
+        return { ok: true, removida: removida }; // "removida" é só para o aviso; a rota apaga antes de responder
       }
     }
     return { ok: true, inexistente: true };
   } finally { trava.releaseLock(); }
+}
+
+/* ---------- avisos no celular (Web Push via Worker do Cloudflare) ---------- */
+
+function configPush() {
+  var pr = PropertiesService.getScriptProperties();
+  return { url: pr.getProperty('PUSH_URL') || '', segredo: pr.getProperty('PUSH_SEGREDO') || '',
+           chave: pr.getProperty('PUSH_CHAVE') || '' };
+}
+
+/** O que o painel precisa saber. "fim" identifica o aparelho inscrito sem mandar a inscrição inteira. */
+function situacaoPush() {
+  var c = configPush(), ins = ajuste('push_inscricao'), fim = '';
+  if (ins) { try { fim = String(JSON.parse(ins).endpoint).slice(-24); } catch (err) { /* inscrição corrompida */ } }
+  return { pronto: !!(c.url && c.segredo && c.chave), chave: c.chave, fim: fim, erro: ajuste('push_erro') };
+}
+
+/** Manda um aviso ao aparelho inscrito. Nunca lança erro: devolve {ok, erro}. */
+function enviarPush(titulo, corpo, tag) {
+  try {
+    var c = configPush();
+    if (!c.url || !c.segredo) return { ok: false, erro: 'avisos não configurados (Propriedades do script)' };
+    var ins = ajuste('push_inscricao');
+    if (!ins) return { ok: false, erro: 'nenhum aparelho ativado' };
+    var r = UrlFetchApp.fetch(c.url, {
+      method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+      headers: { Authorization: 'Bearer ' + c.segredo },
+      payload: JSON.stringify({ inscricao: JSON.parse(ins), titulo: titulo, corpo: corpo, tag: tag })
+    });
+    var resp = {};
+    try { resp = JSON.parse(r.getContentText()); } catch (err) { resp = { erro: 'HTTP ' + r.getResponseCode() }; }
+    if (resp.ok) {
+      if (ajuste('push_erro')) gravarAjuste('push_erro', '');
+      return { ok: true };
+    }
+    var quando = Utilities.formatDate(new Date(), FUSO, 'dd/MM HH:mm');
+    if (resp.expirada) {
+      // o aparelho desistiu da inscrição (app removido, permissão retirada): ativar de novo no celular
+      gravarAjuste('push_inscricao', '');
+      gravarAjuste('push_erro', quando + ' — o aparelho cancelou a inscrição. Ative os avisos de novo.');
+      return { ok: false, erro: 'inscrição expirada' };
+    }
+    var msg = String(resp.erro || ('HTTP ' + r.getResponseCode())).slice(0, 200);
+    gravarAjuste('push_erro', quando + ' — ' + msg);
+    return { ok: false, erro: msg };
+  } catch (err) {
+    var m = String(err && err.message ? err.message : err).slice(0, 200);
+    try { gravarAjuste('push_erro', Utilities.formatDate(new Date(), FUSO, 'dd/MM HH:mm') + ' — ' + m); } catch (e2) {}
+    return { ok: false, erro: m };
+  }
+}
+
+function ddmm(iso) { var x = String(iso).split('-'); return x.length === 3 ? x[2] + '/' + x[1] : String(iso); }
+function reais(v) {
+  var n = Number(v) || 0, s = n.toFixed(2).split('.');
+  return 'R$ ' + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + s[1];
+}
+
+/** Texto do aviso de viagem nova ou cancelada. */
+function avisarViagem(evento, v) {
+  var sigla = String(v.tipo).toUpperCase();
+  var titulo = (evento === 'cancelada' ? 'Cancelada · ' : '') + sigla + ' · ' + v.nome;
+  var corpo = ddmm(v.data) + ' às ' + v.hora + ' · ' + reais(v.valor);
+  if (v.descricao) corpo += '\n' + v.descricao;
+  // registro de uma viagem de outro dia (retroativo ou que ficou na fila sem internet)
+  if (evento === 'nova' && v.data !== hojeISO()) corpo += '\n⚠ lançada em ' + ddmm(hojeISO()) + ', viagem de ' + ddmm(v.data);
+  enviarPush(titulo, corpo, (evento === 'cancelada' ? 'c' : 'v') + v.id);
+}
+
+/** Rode pelo editor depois de publicar a versão 7: autoriza o acesso externo e manda um aviso de teste. */
+function testarAviso() {
+  Logger.log(JSON.stringify(enviarPush('Teste pelo editor', 'O Apps Script conseguiu falar com o Worker.', 'teste')));
 }
 
 /** Rode uma vez pelo editor após atualizar o script. */
