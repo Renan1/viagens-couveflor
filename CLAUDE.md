@@ -18,6 +18,15 @@ abrir uma sessão nesta pasta. Mantenha-o atualizado ao fechar cada etapa.
   `avisos-viagens` no Cloudflare — **avisos no celular do gestor** (Web Push). Ver seção
   "Avisos no celular". Worker, variáveis, Propriedades do script e `testarAviso` foram
   feitos pelo dono e conferidos; o branch `avisos-push` foi juntado ao `main`.
+- **Em teste (branch `lista-por-dia`, `index.html` 6.6, NÃO publicado):** lista de viagens
+  agrupada por dia, nas telas do motorista e do gestor (`listar` + `cabecalhoDia`).
+  Combinado com o dono em 2026-11-18: cabeçalho "Hoje"/"Ontem"/dia da semana + data, marca
+  "fim de semana" ou "feriado" (mesmos feriados da projeção), total do dia (viagens ·
+  valor); dias do mais recente ao mais antigo e, **dentro do dia, em ordem de horário**.
+  A linha mostra hora, motorista (só gestor) · descrição, valor, pago e cancelar. Fica de
+  fora: recolher dias e marca de retroativo (essa é dos indicadores de consistência).
+  Testado no simulador (gestor escuro, motorista claro, cancelar). Os prints da lista no
+  guia do operador ficam diferentes — o dono disse que não precisa atualizar o guia.
 - **Avisos confirmados no iPhone do dono em 2026-11-18** (chegou o "Avisos ativados").
   Próximo chat: perguntar se os avisos de **registro real de motorista** estão chegando
   e se o texto está bom.
@@ -411,6 +420,10 @@ simulador: `1234` (só existe no simulador). Uso, no console da página servida 
 `E.token = "mcarlos00001"; await carregar()` para ver como motorista, ou
 `E.token = null; E.pin = "1234"; await carregar()` para o painel. Foi com ele que saíram
 os prints do guia (viewport de celular 375×812). Nunca aponta para a planilha real.
+**Cuidado (pago em 2026-11-18):** entrar no painel pelo simulador grava `cf_pin = "1234"`
+no `localStorage`; ao **recarregar a página** o app tenta esse PIN no servidor **real** e
+conta como tentativa errada (5 seguidas bloqueiam o dono por 15 min). Sempre
+`localStorage.clear()` antes de recarregar.
 Ele **não responde** `push_*` nem manda o campo `push` no `gestor`: o painel mostra
 "servidor desatualizado" na seção Avisos. Para testar os avisos, embrulhar o `fetch` do
 simulador acrescentando `push: {pronto, chave, fim, erro}` e simular

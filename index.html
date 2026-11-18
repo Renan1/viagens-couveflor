@@ -206,6 +206,10 @@
   .item-dir{text-align:right;flex-shrink:0;display:flex;align-items:center;gap:8px}
   .item-dir small{display:block;font-size:.72rem;color:var(--muted)}
   .item.pago{opacity:.62}
+  .dia{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:16px 2px 8px;font-size:.78rem;color:var(--muted)}
+  .dia b{color:var(--texto);font-size:.84rem}
+  .dia i{font-style:normal;margin-left:8px;padding:1px 7px;border-radius:999px;border:1px solid var(--borda);font-size:.7rem}
+  .dia > span:last-child{white-space:nowrap}
   .tag{padding:4px 8px;border-radius:6px;font-size:.7rem;font-weight:800;letter-spacing:.04em;flex-shrink:0}
   .tag.ida{background:var(--ida-bg);color:var(--ida)} .tag.volta{background:var(--volta-bg);color:var(--volta)}
   .tag.extra{background:var(--extra-bg);color:var(--extra)} .tag.pix{background:var(--pix-bg);color:var(--pix)}
@@ -312,7 +316,7 @@
 const API = "https://script.google.com/macros/s/AKfycbyb3mIEaspqZPGhbWofnaqfZ7YwMV9URH0usuFylEIY7AFe8BKq2jlzzfMqZDyrpM4M/exec";
 /* ————————————————————————————————————————————————————————— */
 
-const VERSAO = "6.5";
+const VERSAO = "6.6";
 
 const TIPOS = {
   ida:   {sigla:"IDA",   rotulo:"Levar equipe",  sub:"casa → empresa", cor:"var(--ida)"},
@@ -1171,23 +1175,44 @@ function telaDash(){
   app.addEventListener("focusout", esconder);
 })();
 
+/* cabeçalho de um dia da lista: "Hoje, 18/11", "Segunda-feira, 16/11", com fim de semana ou feriado
+   (mesmos feriados da projeção do dashboard) e o total do dia */
+function cabecalhoDia(iso, doDia){
+  const [a,m,d] = String(iso).split("-").map(Number);
+  const dt = new Date(a, m-1, d);
+  if(!(a && m && d) || isNaN(dt)) return '<div class="dia"><b>'+esc(iso)+'</b></div>';
+  const hoje = hojeISO(), ontem = isoDe(somaDias(dataDe(hoje), -1));
+  let nome = iso === hoje ? "Hoje" : iso === ontem ? "Ontem" : dt.toLocaleDateString("pt-BR", {weekday:"long"});
+  nome = nome.charAt(0).toUpperCase() + nome.slice(1);
+  const marca = feriadosDoAno(a).has(iso) ? "feriado" : (dt.getDay() === 0 || dt.getDay() === 6) ? "fim de semana" : "";
+  return '<div class="dia"><span><b>'+esc(nome)+', '+pad(d)+'/'+pad(m)+'</b>'+(marca ? '<i>'+marca+'</i>' : '')+'</span>'+
+    '<span class="tab">'+plural(doDia.length, "viagem", "viagens")+' · '+moeda(soma(doDia))+'</span></div>';
+}
+
+/* viagens agrupadas por dia: dias do mais recente para o mais antigo, e dentro do dia em ordem de horário */
 function listar(vs, op){
   if(!vs.length) return '<p class="vazio">Nenhuma viagem neste mês.</p>';
+  const dias = {};
+  for(const v of vs) (dias[v.data] = dias[v.data] || []).push(v);
   let h = "";
-  for(const v of vs){
-    const tipo = TIPOS[v.tipo] ? v.tipo : "extra";
-    const pago = !!v.pagamento;
-    const meio = [op.nome ? v.nome : "", v.descricao].filter(Boolean).join(" · ");
-    // viagem paga não se cancela; motorista só cancela o que lançou hoje
-    const podeCancelar = !pago && (op.cancelar === "cancelarG" ||
-      (E.dados && E.dados.hoje && String(v.enviado).indexOf(E.dados.hoje) === 0));
-    h += '<div class="item'+(pago?' pago':'')+'">'+
-      '<div class="item-esq"><span class="tag '+tipo+'">'+TIPOS[tipo].sigla+'</span><div style="min-width:0">'+
-        '<strong>'+diaCurto(v.data)+' <span class="tab" style="font-weight:400;color:var(--muted)">'+esc(v.hora)+'</span></strong>'+
-        (meio?'<span class="sub">'+esc(meio)+'</span>':'')+'</div></div>'+
-      '<div class="item-dir"><div><b class="tab">'+moeda(v.valor)+'</b>'+(pago?'<small style="color:var(--pix)">pago</small>':'')+'</div>'+
-        (podeCancelar ? '<button class="mini" data-acao="'+op.cancelar+'" data-id="'+esc(v.id)+'">cancelar</button>' : '')+
-      '</div></div>';
+  for(const dia of Object.keys(dias).sort().reverse()){
+    const doDia = dias[dia].slice().sort((a,b) => String(a.hora).localeCompare(String(b.hora)));
+    h += cabecalhoDia(dia, doDia);
+    for(const v of doDia){
+      const tipo = TIPOS[v.tipo] ? v.tipo : "extra";
+      const pago = !!v.pagamento;
+      // viagem paga não se cancela; motorista só cancela o que lançou hoje
+      const podeCancelar = !pago && (op.cancelar === "cancelarG" ||
+        (E.dados && E.dados.hoje && String(v.enviado).indexOf(E.dados.hoje) === 0));
+      const meio = [op.nome ? v.nome : "", v.descricao].filter(Boolean).join(" · ");
+      h += '<div class="item'+(pago?' pago':'')+'">'+
+        '<div class="item-esq"><span class="tag '+tipo+'">'+TIPOS[tipo].sigla+'</span><div style="min-width:0">'+
+          '<strong class="tab">'+esc(v.hora)+'</strong>'+
+          (meio?'<span class="sub">'+esc(meio)+'</span>':'')+'</div></div>'+
+        '<div class="item-dir"><div><b class="tab">'+moeda(v.valor)+'</b>'+(pago?'<small style="color:var(--pix)">pago</small>':'')+'</div>'+
+          (podeCancelar ? '<button class="mini" data-acao="'+op.cancelar+'" data-id="'+esc(v.id)+'">cancelar</button>' : '')+
+        '</div></div>';
+    }
   }
   return h;
 }
