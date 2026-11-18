@@ -14,11 +14,11 @@ abrir uma sessão nesta pasta. Mantenha-o atualizado ao fechar cada etapa.
 
 ## Onde parei — ler primeiro (atualizado em 2026-11-18)
 
-- **No ar (2026-11-18):** `index.html` 6.5 + `sw.js` + `Code.gs` 7 + Worker
+- **No ar (2026-11-18):** `index.html` 6.6 (6.5 trouxe os avisos) + `sw.js` + `Code.gs` 7 + Worker
   `avisos-viagens` no Cloudflare — **avisos no celular do gestor** (Web Push). Ver seção
   "Avisos no celular". Worker, variáveis, Propriedades do script e `testarAviso` foram
   feitos pelo dono e conferidos; o branch `avisos-push` foi juntado ao `main`.
-- **Em teste (branch `lista-por-dia`, `index.html` 6.6, NÃO publicado):** lista de viagens
+- **No ar desde 2026-11-18 (`index.html` 6.6, juntado ao `main` com ok do dono):** lista de viagens
   agrupada por dia, nas telas do motorista e do gestor (`listar` + `cabecalhoDia`).
   Combinado com o dono em 2026-11-18: cabeçalho "Hoje"/"Ontem"/dia da semana + data, marca
   "fim de semana" ou "feriado" (mesmos feriados da projeção), total do dia (viagens ·
